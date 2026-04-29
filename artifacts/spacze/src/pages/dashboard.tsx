@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'wouter';
-import { useGetProjectStats } from '@workspace/api-client-react';
+import { useGetProjectStats, type Project } from '@workspace/api-client-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import {
@@ -117,7 +117,7 @@ export default function Dashboard() {
             <div className="space-y-1">
               {isLoading
                 ? Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-14 rounded-xl" />)
-                : stats?.recentProjects?.slice(0, 5).map((project) => (
+                : stats?.recentProjects?.slice(0, 5).map((project: Project) => (
                     <Link key={project.id} href={`/projects/${project.id}`}>
                       <div className="group flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[hsl(0,0%,18%)] transition-colors cursor-pointer">
                         <div className="w-8 h-8 rounded-lg bg-[hsl(0,0%,20%)] flex items-center justify-center shrink-0">

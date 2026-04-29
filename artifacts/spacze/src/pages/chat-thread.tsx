@@ -3,6 +3,7 @@ import { useParams } from 'wouter';
 import {
   useGetOpenaiConversation,
   getGetOpenaiConversationQueryKey,
+  type OpenaiMessage,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { parseSSE } from '@/lib/sse';
@@ -147,7 +148,7 @@ export default function ChatThread() {
       {!isEmpty && (
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-3xl mx-auto px-4 py-8 space-y-8">
-            {messages.map((msg) => (
+            {messages.map((msg: OpenaiMessage) => (
               <div key={msg.id} className={cn('group', msg.role === 'user' ? 'flex justify-end' : '')}>
                 {msg.role === 'user' ? (
                   /* User bubble */

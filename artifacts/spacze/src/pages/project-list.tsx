@@ -4,6 +4,7 @@ import {
   useListProjects,
   getListProjectsQueryKey,
   useDeleteProject,
+  type Project,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
@@ -76,7 +77,7 @@ export default function ProjectList() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {projects?.map((project) => (
+            {projects?.map((project: Project) => (
               <Link key={project.id} href={`/projects/${project.id}`}>
                 <div className="group relative flex flex-col p-5 rounded-2xl bg-[hsl(0,0%,16%)] border border-border hover:border-[hsl(0,0%,28%)] hover:bg-[hsl(0,0%,18%)] transition-all cursor-pointer h-full">
                   {/* Status badge */}

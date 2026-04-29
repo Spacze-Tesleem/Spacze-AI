@@ -6,6 +6,7 @@ import {
   useListProjectFiles,
   getListProjectFilesQueryKey,
   useUpdateProjectFile,
+  type ProjectFile,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { parseSSE } from '@/lib/sse';
@@ -152,7 +153,7 @@ export default function ProjectWorkspace() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  const selectedFile = files?.find((f) => f.id === selectedFileId);
+  const selectedFile = files?.find((f: ProjectFile) => f.id === selectedFileId);
 
   // Only overwrite editor content when the selected file actually changes
   useEffect(() => {

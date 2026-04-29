@@ -5,6 +5,7 @@ import {
   useCreateOpenaiConversation,
   useDeleteOpenaiConversation,
   getListOpenaiConversationsQueryKey,
+  type OpenaiConversation,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
@@ -21,7 +22,7 @@ export default function ChatList() {
 
   const createMutation = useCreateOpenaiConversation({
     mutation: {
-      onSuccess: (data) => {
+      onSuccess: (data: OpenaiConversation) => {
         queryClient.invalidateQueries({ queryKey: getListOpenaiConversationsQueryKey() });
         setLocation(`/chat/${data.id}`);
       },
@@ -48,7 +49,7 @@ export default function ChatList() {
     }
   };
 
-  const filtered = conversations?.filter((c) =>
+  const filtered = conversations?.filter((c: OpenaiConversation) =>
     c.title.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -111,7 +112,7 @@ export default function ChatList() {
           </div>
         ) : (
           <div className="space-y-1 mt-2">
-            {filtered?.map((conv) => (
+            {filtered?.map((conv: OpenaiConversation) => (
               <Link key={conv.id} href={`/chat/${conv.id}`}>
                 <div className="group flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[hsl(0,0%,18%)] transition-colors cursor-pointer">
                   <div className="w-9 h-9 rounded-xl bg-[hsl(0,0%,18%)] group-hover:bg-[hsl(0,0%,22%)] flex items-center justify-center shrink-0 transition-colors">

@@ -14,6 +14,7 @@ import {
   useListOpenaiConversations,
   useCreateOpenaiConversation,
   getListOpenaiConversationsQueryKey,
+  type OpenaiConversation,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -30,7 +31,7 @@ export function Layout({ children }: LayoutProps) {
 
   const createMutation = useCreateOpenaiConversation({
     mutation: {
-      onSuccess: (data) => {
+      onSuccess: (data: OpenaiConversation) => {
         queryClient.invalidateQueries({ queryKey: getListOpenaiConversationsQueryKey() });
         setLocation(`/chat/${data.id}`);
       },
@@ -130,7 +131,7 @@ export function Layout({ children }: LayoutProps) {
               Recent chats
             </p>
             <div className="px-2 space-y-0.5">
-              {conversations.slice(0, 20).map((conv) => (
+              {conversations.slice(0, 20).map((conv: OpenaiConversation) => (
                 <Link
                   key={conv.id}
                   href={`/chat/${conv.id}`}
