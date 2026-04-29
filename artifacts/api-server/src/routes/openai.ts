@@ -91,11 +91,18 @@ router.post("/openai/conversations/:id/messages", async (req, res) => {
     return;
   }
 
-  // Save user message
+  // Strip any SYSTEM_HINT injected by the client toolbar before persisting.
+  // The hint augments the system prompt; it must not appear in chat history.
+  const HINT_RE = /^\[SYSTEM_HINT:([^\]]*)\]\n?/;
+  const hintMatch = body.content.match(HINT_RE);
+  const systemHint = hintMatch ? hintMatch[1].trim() : "";
+  const userContent = body.content.replace(HINT_RE, "");
+
+  // Save user message (without the hint prefix)
   await db.insert(messages).values({
     conversationId: id,
     role: "user",
-    content: body.content,
+    content: userContent,
   });
 
   // Get conversation history
@@ -110,10 +117,8 @@ router.post("/openai/conversations/:id/messages", async (req, res) => {
     content: m.content,
   }));
 
-  // Add system prompt for AI agent context
-  const systemPrompt = {
-    role: "system" as const,
-    content: `You are Spacze AI Agent, an advanced AI-powered development assistant embedded in the Spacze cloud IDE. You help developers build, debug, and deploy full-stack applications using natural language. You can:
+  // Build system prompt, appending any client-side mode/tool hints
+  const baseSystemContent = `You are Spacze AI Agent, an advanced AI-powered development assistant embedded in the Spacze cloud IDE. You help developers build, debug, and deploy full-stack applications using natural language. You can:
 - Generate full application scaffolds from descriptions
 - Provide intelligent code suggestions and completions
 - Debug errors and suggest fixes
@@ -121,7 +126,13 @@ router.post("/openai/conversations/:id/messages", async (req, res) => {
 - Support frameworks like React, Next.js, Flask, Django, Express, FastAPI, Vue
 - Create full-stack applications end-to-end
 
-Be concise, technical, and practical. Format code in markdown code blocks with the language specified.`,
+Be concise, technical, and practical. Format code in markdown code blocks with the language specified.`;
+
+  const systemPrompt = {
+    role: "system" as const,
+    content: systemHint
+      ? `${baseSystemContent}\n\nAdditional instructions for this request: ${systemHint}`
+      : baseSystemContent,
   };
 
   res.setHeader("Content-Type", "text/event-stream");

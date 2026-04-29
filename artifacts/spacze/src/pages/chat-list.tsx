@@ -17,7 +17,9 @@ export default function ChatList() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
 
-  const { data: conversations, isLoading } = useListOpenaiConversations();
+  const { data: rawConversations, isLoading } = useListOpenaiConversations();
+  // Guard against a non-array cache value (e.g. stale object from a prior mutation).
+  const conversations = Array.isArray(rawConversations) ? rawConversations : undefined;
 
   const createMutation = useCreateOpenaiConversation({
     mutation: {

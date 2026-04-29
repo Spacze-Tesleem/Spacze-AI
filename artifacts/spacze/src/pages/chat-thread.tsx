@@ -68,8 +68,10 @@ export default function ChatThread() {
     const cleanUrl = window.location.pathname;
     window.history.replaceState(null, '', cleanUrl);
 
-    // Trigger send with the prefilled prompt
-    sendMessage(q);
+    // Strip any SYSTEM_HINT prefix injected by the dashboard toolbar before
+    // sending — the hint is for the server system prompt, not the user message.
+    const userText = q.replace(/^\[SYSTEM_HINT:[^\]]*\]\n?/, '');
+    sendMessage(userText);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [convId, isLoading, search]);
 
