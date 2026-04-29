@@ -1,0 +1,59 @@
+tasks:
+  installDeps:
+    name: Install dependencies
+    description: Install all workspace dependencies with pnpm.
+    command: pnpm install --frozen-lockfile
+    triggeredBy:
+      - postDevcontainerStart
+
+  dbPush:
+    name: Push database schema
+    description: Apply Drizzle schema to the local Postgres instance.
+    command: pnpm --filter @workspace/db push
+    triggeredBy:
+      - postDevcontainerStart
+    dependsOn:
+      - installDeps
+
+services:
+  postgres:
+    name: PostgreSQL
+    description: Local Postgres 16 database via Docker.
+    commands:
+      start: |
+        docker run --rm \
+          --name spacze-postgres \
+          -e POSTGRES_USER=spacze \
+          -e POSTGRES_PASSWORD=spacze \
+          -e POSTGRES_DB=spacze \
+          -p 5432:5432 \
+          postgres:16-alpine
+      ready: |
+        docker exec spacze-postgres pg_isready -U spacze
+      stop: docker stop spacze-postgres
+
+  api-server:
+    name: API Server
+    description: Express API server on port 8080.
+    commands:
+      start: |
+        export DATABASE_URL=postgresql://spacze:spacze@localhost:5432/spacze
+        export PORT=8080
+        export NODE_ENV=development
+        # OpenRouter free-tier LLM — replace with your key from https://openrouter.ai/keys
+        export AI_INTEGRATIONS_OPENAI_BASE_URL=https://openrouter.ai/api/v1
+        export AI_INTEGRATIONS_OPENAI_API_KEY=${AI_INTEGRATIONS_OPENAI_API_KEY:-your-openrouter-key-here}
+        # Override the model if you want a different one, e.g. meta-llama/llama-3.3-70b-instruct:free
+        export AI_CHAT_MODEL=${AI_CHAT_MODEL:-google/gemma-3-27b-it:free}
+        pnpm --filter @workspace/api-server dev
+      ready: curl -sf http://localhost:8080/api/healthz
+
+  frontend:
+    name: Frontend (Vite)
+    description: Vite dev server for the Spacze UI on port 5173.
+    commands:
+      start: |
+        export PORT=5173
+        export BASE_PATH=/
+        pnpm --filter @workspace/spacze dev
+      ready: curl -sf http://localhost:5173
