@@ -1,12 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useParams } from 'wouter';
+import { useParams, useSearch } from 'wouter';
 import {
   useGetOpenaiConversation,
   getGetOpenaiConversationQueryKey,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { parseSSE } from '@/lib/sse';
-import { Textarea } from '@/components/ui/textarea';
 import { ArrowUp, Loader2, Sparkles, Copy, Check } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -32,6 +31,7 @@ function CopyButton({ text }: { text: string }) {
 
 export default function ChatThread() {
   const { id } = useParams();
+  const search = useSearch();
   const convId = parseInt(id || '0', 10);
   const queryClient = useQueryClient();
 
@@ -44,12 +44,34 @@ export default function ChatThread() {
   const [streamingContent, setStreamingContent] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // Tracks whether we've already fired the auto-send from ?q=
+  const autoSentRef = useRef(false);
 
   const messages = conversation?.messages || [];
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, streamingContent]);
+
+  // If the page was opened with ?q=<prompt> (from chat-new), fire the first
+  // message automatically once the conversation has loaded.
+  useEffect(() => {
+    if (autoSentRef.current) return;
+    if (!convId || isLoading) return;
+
+    const params = new URLSearchParams(search);
+    const q = params.get('q');
+    if (!q) return;
+
+    autoSentRef.current = true;
+    // Remove the query param from the URL without a navigation
+    const cleanUrl = window.location.pathname;
+    window.history.replaceState(null, '', cleanUrl);
+
+    // Trigger send with the prefilled prompt
+    sendMessage(q);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [convId, isLoading, search]);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -59,11 +81,9 @@ export default function ChatThread() {
     el.style.height = Math.min(el.scrollHeight, 200) + 'px';
   }, [input]);
 
-  const handleSend = async () => {
-    if (!input.trim() || isSending || !convId) return;
+  const sendMessage = async (content: string) => {
+    if (!content.trim() || isSending || !convId) return;
 
-    const content = input;
-    setInput('');
     setIsSending(true);
     setStreamingContent('');
 
@@ -115,6 +135,13 @@ export default function ChatThread() {
     }
   };
 
+  const handleSend = () => {
+    if (!input.trim()) return;
+    const content = input;
+    setInput('');
+    sendMessage(content);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -126,20 +153,10 @@ export default function ChatThread() {
 
   return (
     <div className="flex flex-col h-full bg-background">
-      {/* Empty state — centered like ChatGPT */}
+      {/* Empty state — only shown briefly before auto-send fires */}
       {isEmpty && (
-        <div className="flex-1 flex flex-col items-center justify-center gap-6 px-4">
-          <div className="w-12 h-12 rounded-2xl bg-foreground flex items-center justify-center">
-            <Sparkles className="w-6 h-6 text-background" />
-          </div>
-          <div className="text-center">
-            <h1 className="text-2xl font-semibold text-foreground">
-              {conversation?.title || 'New conversation'}
-            </h1>
-            <p className="text-muted-foreground mt-1 text-sm">
-              Ask anything — code, architecture, debugging, ideas.
-            </p>
-          </div>
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="w-5 h-5 text-muted-foreground animate-spin" />
         </div>
       )}
 
