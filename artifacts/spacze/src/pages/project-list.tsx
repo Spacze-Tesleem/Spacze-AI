@@ -6,6 +6,7 @@ import {
   useDeleteProject,
   type Project,
 } from '@workspace/api-client-react';
+
 import { useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { FolderGit2, Plus, Trash2, Clock, Terminal, ArrowRight } from 'lucide-react';
@@ -19,7 +20,12 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 export default function ProjectList() {
-  const { data: projects, isLoading } = useListProjects();
+  const { data: projects, isLoading } = useListProjects({
+    query: {
+      queryKey: getListProjectsQueryKey(),
+      select: (d) => (Array.isArray(d) ? d : []),
+    },
+  });
   const queryClient = useQueryClient();
 
   const deleteMutation = useDeleteProject({

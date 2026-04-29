@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import { Layout } from "@/components/layout";
+import { Placeholder } from "@/pages/placeholder";
 
 // Import pages
 import Dashboard from "@/pages/dashboard";
@@ -26,6 +27,10 @@ function Router() {
         <Route path="/projects" component={ProjectList} />
         <Route path="/projects/new" component={ProjectNew} />
         <Route path="/projects/:id" component={ProjectWorkspace} />
+        <Route path="/published">{() => <Placeholder title="Published Projects" />}</Route>
+        <Route path="/integrations">{() => <Placeholder title="Integrations" />}</Route>
+        <Route path="/security">{() => <Placeholder title="Security" />}</Route>
+        <Route path="/settings">{() => <Placeholder title="Settings" />}</Route>
         <Route component={NotFound} />
       </Switch>
     </Layout>

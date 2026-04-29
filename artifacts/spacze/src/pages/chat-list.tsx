@@ -7,6 +7,7 @@ import {
   getListOpenaiConversationsQueryKey,
   type OpenaiConversation,
 } from '@workspace/api-client-react';
+
 import { useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { MessageSquare, Plus, Trash2, Search, Sparkles } from 'lucide-react';
@@ -18,7 +19,12 @@ export default function ChatList() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
 
-  const { data: conversations, isLoading } = useListOpenaiConversations();
+  const { data: conversations, isLoading } = useListOpenaiConversations({
+    query: {
+      queryKey: getListOpenaiConversationsQueryKey(),
+      select: (d) => (Array.isArray(d) ? d : []),
+    },
+  });
 
   const createMutation = useCreateOpenaiConversation({
     mutation: {
@@ -49,7 +55,7 @@ export default function ChatList() {
     }
   };
 
-  const filtered = conversations?.filter((c: OpenaiConversation) =>
+  const filtered = (conversations ?? []).filter((c: OpenaiConversation) =>
     c.title.toLowerCase().includes(search.toLowerCase())
   );
 
