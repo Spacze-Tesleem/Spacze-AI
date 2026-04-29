@@ -1,17 +1,21 @@
 import React from 'react';
 import { Link } from 'wouter';
-import { 
+import {
   useListProjects,
   getListProjectsQueryKey,
-  useDeleteProject
+  useDeleteProject,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { FolderGit2, Plus, Terminal, Trash2, Clock, Code2 } from 'lucide-react';
+import { FolderGit2, Plus, Trash2, Clock, Terminal, ArrowRight } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
+
+const STATUS_STYLES: Record<string, string> = {
+  ready: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20',
+  scaffolding: 'bg-amber-500/15 text-amber-400 border-amber-500/20',
+  error: 'bg-red-500/15 text-red-400 border-red-500/20',
+};
 
 export default function ProjectList() {
   const { data: projects, isLoading } = useListProjects();
@@ -21,102 +25,102 @@ export default function ProjectList() {
     mutation: {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListProjectsQueryKey() });
-      }
-    }
+      },
+    },
   });
 
   const handleDelete = (e: React.MouseEvent, id: number) => {
     e.preventDefault();
-    if (confirm('Are you sure you want to delete this project?')) {
+    if (confirm('Delete this project?')) {
       deleteMutation.mutate({ id });
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'ready': return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/20';
-      case 'scaffolding': return 'bg-amber-500/20 text-amber-400 border-amber-500/20 animate-pulse';
-      case 'error': return 'bg-destructive/20 text-destructive border-destructive/20';
-      default: return 'bg-muted text-muted-foreground';
-    }
-  };
-
   return (
-    <div className="flex-1 overflow-y-auto p-8 bg-background">
-      <div className="max-w-6xl mx-auto space-y-8">
-        
-        <header className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">Projects</h1>
-            <p className="text-muted-foreground mt-1">Your codebases and workspaces.</p>
-          </div>
-          <Button asChild className="gap-2">
-            <Link href="/projects/new">
-              <Plus className="w-4 h-4" />
-              New Project
-            </Link>
-          </Button>
-        </header>
+    <div className="flex flex-col h-full bg-background">
+      {/* Header */}
+      <div className="border-b border-border px-6 py-4 flex items-center justify-between shrink-0">
+        <h1 className="text-lg font-semibold text-foreground">Projects</h1>
+        <Link href="/projects/new">
+          <button className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-foreground text-background text-sm font-medium hover:bg-foreground/90 transition-colors">
+            <Plus className="w-4 h-4" />
+            New project
+          </button>
+        </Link>
+      </div>
 
+      <div className="flex-1 overflow-y-auto px-6 py-4">
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1, 2, 3, 4, 5, 6].map(i => (
-              <Skeleton key={i} className="h-48 rounded-xl" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {Array(6).fill(0).map((_, i) => (
+              <Skeleton key={i} className="h-40 rounded-2xl" />
             ))}
           </div>
         ) : projects?.length === 0 ? (
-          <div className="text-center py-24 text-muted-foreground border border-dashed rounded-xl border-border bg-card/30">
-            <FolderGit2 className="mx-auto h-16 w-16 mb-4 opacity-20" />
-            <h3 className="text-xl font-medium text-foreground">No projects yet</h3>
-            <p className="mt-2 mb-6 max-w-md mx-auto">Create a new project and let the AI scaffold the boilerplate for you.</p>
-            <Button asChild>
-              <Link href="/projects/new">Create Project</Link>
-            </Button>
+          <div className="flex flex-col items-center justify-center h-full gap-4 text-center py-24">
+            <div className="w-14 h-14 rounded-2xl bg-[hsl(0,0%,18%)] flex items-center justify-center">
+              <FolderGit2 className="w-7 h-7 text-muted-foreground" />
+            </div>
+            <div>
+              <p className="font-medium text-foreground">No projects yet</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Describe what you want to build and the AI will scaffold it.
+              </p>
+            </div>
+            <Link href="/projects/new">
+              <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-foreground text-background text-sm font-medium hover:bg-foreground/90 transition-colors">
+                <Plus className="w-4 h-4" />
+                Create project
+              </button>
+            </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {projects?.map(project => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {projects?.map((project) => (
               <Link key={project.id} href={`/projects/${project.id}`}>
-                <Card className="h-full hover:border-primary/50 hover:bg-card/80 transition-all cursor-pointer group flex flex-col border-border bg-card">
-                  <CardHeader className="pb-3">
-                    <div className="flex justify-between items-start">
-                      <div className="bg-primary/10 p-2 rounded-md text-primary mb-3">
-                        <Terminal className="w-5 h-5" />
-                      </div>
-                      <Badge variant="outline" className={`font-mono uppercase text-[10px] ${getStatusColor(project.status)}`}>
-                        {project.status}
-                      </Badge>
+                <div className="group relative flex flex-col p-5 rounded-2xl bg-[hsl(0,0%,16%)] border border-border hover:border-[hsl(0,0%,28%)] hover:bg-[hsl(0,0%,18%)] transition-all cursor-pointer h-full">
+                  {/* Status badge */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="w-9 h-9 rounded-xl bg-[hsl(0,0%,22%)] flex items-center justify-center">
+                      <Terminal className="w-4 h-4 text-muted-foreground" />
                     </div>
-                    <CardTitle className="group-hover:text-primary transition-colors text-xl line-clamp-1">
-                      {project.name}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="flex-1">
-                    <p className="text-sm text-muted-foreground line-clamp-2">
-                      {project.description || 'No description provided.'}
-                    </p>
-                  </CardContent>
-                  <CardFooter className="pt-4 border-t border-border flex items-center justify-between">
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center gap-1.5 text-xs font-mono text-foreground bg-accent px-2 py-1 rounded">
-                        <Code2 className="w-3 h-3" />
-                        {project.framework}
-                      </div>
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <span
+                      className={cn(
+                        'text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full border',
+                        STATUS_STYLES[project.status] ?? 'bg-muted text-muted-foreground border-border'
+                      )}
+                    >
+                      {project.status}
+                    </span>
+                  </div>
+
+                  {/* Name + description */}
+                  <p className="font-semibold text-foreground text-sm leading-snug group-hover:text-white transition-colors line-clamp-1">
+                    {project.name}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2 flex-1">
+                    {project.description || 'No description.'}
+                  </p>
+
+                  {/* Footer */}
+                  <div className="flex items-center justify-between mt-4 pt-3 border-t border-border">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-mono">
+                      <span>{project.framework}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
                         <Clock className="w-3 h-3" />
                         {format(new Date(project.updatedAt), 'MMM d')}
-                      </div>
+                      </span>
+                      <button
+                        onClick={(e) => handleDelete(e, project.id)}
+                        className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={(e) => handleDelete(e, project.id)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </CardFooter>
-                </Card>
+                  </div>
+                </div>
               </Link>
             ))}
           </div>

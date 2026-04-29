@@ -1,48 +1,43 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { 
-  useListOpenaiConversations, 
-  useCreateOpenaiConversation, 
+import {
+  useListOpenaiConversations,
+  useCreateOpenaiConversation,
   useDeleteOpenaiConversation,
-  getListOpenaiConversationsQueryKey
+  getListOpenaiConversationsQueryKey,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card } from '@/components/ui/card';
-import { MessageSquare, Plus, Trash2, Search } from 'lucide-react';
+import { MessageSquare, Plus, Trash2, Search, Sparkles } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 
 export default function ChatList() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
-  const [newTitle, setNewTitle] = useState('');
-  
+
   const { data: conversations, isLoading } = useListOpenaiConversations();
-  
+
   const createMutation = useCreateOpenaiConversation({
     mutation: {
       onSuccess: (data) => {
         queryClient.invalidateQueries({ queryKey: getListOpenaiConversationsQueryKey() });
         setLocation(`/chat/${data.id}`);
-      }
-    }
+      },
+    },
   });
 
   const deleteMutation = useDeleteOpenaiConversation({
     mutation: {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListOpenaiConversationsQueryKey() });
-      }
-    }
+      },
+    },
   });
 
-  const handleCreate = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTitle.trim()) return;
-    createMutation.mutate({ data: { title: newTitle.trim() } });
+  const handleCreate = () => {
+    createMutation.mutate({ data: { title: 'New conversation' } });
   };
 
   const handleDelete = (e: React.MouseEvent, id: number) => {
@@ -53,87 +48,92 @@ export default function ChatList() {
     }
   };
 
-  const filtered = conversations?.filter(c => 
+  const filtered = conversations?.filter((c) =>
     c.title.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
-    <div className="flex flex-col h-full bg-background p-8">
-      <div className="max-w-4xl mx-auto w-full space-y-8 flex-1 flex flex-col">
-        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">Conversations</h1>
-            <p className="text-muted-foreground mt-1">Discuss architecture, algorithms, and ideas.</p>
-          </div>
-          
-          <form onSubmit={handleCreate} className="flex gap-2">
-            <Input 
-              placeholder="New discussion topic..." 
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
-              className="w-64"
-              disabled={createMutation.isPending}
-            />
-            <Button type="submit" disabled={!newTitle.trim() || createMutation.isPending}>
-              <Plus className="w-4 h-4 mr-2" />
-              New
-            </Button>
-          </form>
-        </header>
+    <div className="flex flex-col h-full bg-background">
+      {/* Header */}
+      <div className="border-b border-border px-6 py-4 flex items-center justify-between shrink-0">
+        <h1 className="text-lg font-semibold text-foreground">Conversations</h1>
+        <button
+          onClick={handleCreate}
+          disabled={createMutation.isPending}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-foreground text-background text-sm font-medium hover:bg-foreground/90 transition-colors disabled:opacity-50"
+        >
+          <Plus className="w-4 h-4" />
+          New chat
+        </button>
+      </div>
 
+      {/* Search */}
+      <div className="px-6 py-3 shrink-0">
         <div className="relative">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="Search conversations..." 
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Search conversations…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 bg-card border-border"
+            className="w-full pl-9 pr-4 py-2 bg-[hsl(0,0%,18%)] border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[hsl(0,0%,35%)] transition-colors"
           />
         </div>
+      </div>
 
-        <div className="flex-1 overflow-y-auto space-y-3 pb-8">
-          {isLoading ? (
-            Array(5).fill(0).map((_, i) => (
-              <Skeleton key={i} className="h-20 w-full rounded-xl" />
-            ))
-          ) : filtered?.length === 0 ? (
-            <div className="text-center py-16 text-muted-foreground border border-dashed rounded-xl border-border bg-card/50">
-              <MessageSquare className="mx-auto h-12 w-12 mb-4 opacity-20" />
-              <h3 className="text-lg font-medium text-foreground">No conversations found</h3>
-              <p className="mt-1">Start a new chat to bounce ideas off the AI.</p>
+      {/* List */}
+      <div className="flex-1 overflow-y-auto px-6 pb-6">
+        {isLoading ? (
+          <div className="space-y-2 mt-2">
+            {Array(6).fill(0).map((_, i) => (
+              <Skeleton key={i} className="h-16 w-full rounded-xl" />
+            ))}
+          </div>
+        ) : filtered?.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full gap-4 text-center py-24">
+            <div className="w-14 h-14 rounded-2xl bg-[hsl(0,0%,18%)] flex items-center justify-center">
+              <MessageSquare className="w-7 h-7 text-muted-foreground" />
             </div>
-          ) : (
-            filtered?.map(conv => (
+            <div>
+              <p className="font-medium text-foreground">No conversations yet</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Start a new chat to get going.
+              </p>
+            </div>
+            <button
+              onClick={handleCreate}
+              disabled={createMutation.isPending}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-foreground text-background text-sm font-medium hover:bg-foreground/90 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              New chat
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-1 mt-2">
+            {filtered?.map((conv) => (
               <Link key={conv.id} href={`/chat/${conv.id}`}>
-                <Card className="p-4 hover:border-primary/50 hover:bg-accent/50 transition-colors cursor-pointer group border-border">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-4">
-                      <div className="bg-primary/10 p-3 rounded-lg text-primary">
-                        <MessageSquare className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <h3 className="font-medium text-lg group-hover:text-primary transition-colors">
-                          {conv.title}
-                        </h3>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Started {format(new Date(conv.createdAt), 'MMM d, yyyy h:mm a')}
-                        </p>
-                      </div>
-                    </div>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={(e) => handleDelete(e, conv.id)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                <div className="group flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[hsl(0,0%,18%)] transition-colors cursor-pointer">
+                  <div className="w-9 h-9 rounded-xl bg-[hsl(0,0%,18%)] group-hover:bg-[hsl(0,0%,22%)] flex items-center justify-center shrink-0 transition-colors">
+                    <MessageSquare className="w-4 h-4 text-muted-foreground" />
                   </div>
-                </Card>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{conv.title}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {format(new Date(conv.createdAt), 'MMM d, yyyy')}
+                    </p>
+                  </div>
+                  <button
+                    onClick={(e) => handleDelete(e, conv.id)}
+                    className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </Link>
-            ))
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
