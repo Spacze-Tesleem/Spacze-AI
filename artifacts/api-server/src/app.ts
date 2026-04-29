@@ -3,6 +3,7 @@ import cors, { type CorsOptions } from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { errorHandler } from "./middlewares/error-handler";
 
 const app: Express = express();
 
@@ -56,5 +57,8 @@ app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
 app.use("/api", router);
+
+// Must be registered after all routes.
+app.use(errorHandler);
 
 export default app;
