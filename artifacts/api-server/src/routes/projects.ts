@@ -210,8 +210,8 @@ Requirements:
     res.write(`data: ${JSON.stringify({ content: `Scaffolding ${project.framework} project: ${project.name}...\n` })}\n\n`);
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4.1",
-      max_completion_tokens: 8192,
+      model: process.env.AI_CHAT_MODEL ?? "google/gemma-3-27b-it:free",
+      max_tokens: 8192,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: `Project: ${project.name}\n\nDescription: ${prompt}\n\nGenerate the complete project scaffold.` },
@@ -296,8 +296,8 @@ router.post("/projects/:id/debug", async (req, res) => {
 
   try {
     const stream = await openai.chat.completions.create({
-      model: "gpt-4.1",
-      max_completion_tokens: 8192,
+      model: process.env.AI_CHAT_MODEL ?? "google/gemma-3-27b-it:free",
+      max_tokens: 8192,
       messages: [
         {
           role: "system",

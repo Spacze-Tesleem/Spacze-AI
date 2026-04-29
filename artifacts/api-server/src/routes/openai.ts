@@ -133,8 +133,8 @@ Be concise, technical, and practical. Format code in markdown code blocks with t
 
   try {
     const stream = await openai.chat.completions.create({
-      model: "gpt-4.1",
-      max_completion_tokens: 8192,
+      model: process.env.AI_CHAT_MODEL ?? "google/gemma-3-27b-it:free",
+      max_tokens: 8192,
       messages: [systemPrompt, ...chatMessages],
       stream: true,
     });
@@ -163,8 +163,18 @@ Be concise, technical, and practical. Format code in markdown code blocks with t
 });
 
 // Generate image
+// Image generation requires a provider that supports it (e.g. OpenAI directly).
+// When using OpenRouter's free tier this endpoint returns 503 with a clear message.
 router.post("/openai/generate-image", async (req, res) => {
   const body = GenerateOpenaiImageBody.parse(req.body);
+
+  if (!process.env.AI_INTEGRATIONS_OPENAI_BASE_URL?.includes("openai.com")) {
+    res.status(503).json({
+      error: "Image generation requires a direct OpenAI key. Set AI_INTEGRATIONS_OPENAI_BASE_URL=https://api.openai.com/v1 and a paid API key to enable this feature.",
+    });
+    return;
+  }
+
   const size = (body.size || "1024x1024") as "1024x1024" | "1536x1024" | "1024x1536";
   const buffer = await generateImageBuffer(body.prompt, size);
   res.json({ b64_json: buffer.toString("base64") });
