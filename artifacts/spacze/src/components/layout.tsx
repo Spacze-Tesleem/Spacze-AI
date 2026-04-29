@@ -12,10 +12,7 @@ import {
 import { cn } from '@/lib/utils';
 import {
   useListOpenaiConversations,
-  useCreateOpenaiConversation,
-  getListOpenaiConversationsQueryKey,
 } from '@workspace/api-client-react';
-import { useQueryClient } from '@tanstack/react-query';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -24,21 +21,11 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   const [location, setLocation] = useLocation();
   const [collapsed, setCollapsed] = useState(false);
-  const queryClient = useQueryClient();
 
   const { data: conversations } = useListOpenaiConversations();
 
-  const createMutation = useCreateOpenaiConversation({
-    mutation: {
-      onSuccess: (data) => {
-        queryClient.invalidateQueries({ queryKey: getListOpenaiConversationsQueryKey() });
-        setLocation(`/chat/${data.id}`);
-      },
-    },
-  });
-
   const handleNewChat = () => {
-    createMutation.mutate({ data: { title: 'New conversation' } });
+    setLocation('/chat/new');
   };
 
   const isActive = (href: string) =>
@@ -83,7 +70,6 @@ export function Layout({ children }: LayoutProps) {
         <div className={cn('px-2 mb-2', collapsed && 'flex justify-center')}>
           <button
             onClick={handleNewChat}
-            disabled={createMutation.isPending}
             className={cn(
               'flex items-center gap-2.5 rounded-lg text-sm font-medium transition-colors',
               'text-sidebar-foreground hover:bg-sidebar-accent',

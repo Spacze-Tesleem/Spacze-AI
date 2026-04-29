@@ -9,6 +9,7 @@ import { Layout } from "@/components/layout";
 // Import pages
 import Dashboard from "@/pages/dashboard";
 import ChatList from "@/pages/chat-list";
+import ChatNew from "@/pages/chat-new";
 import ChatThread from "@/pages/chat-thread";
 import ProjectList from "@/pages/project-list";
 import ProjectNew from "@/pages/project-new";
@@ -22,6 +23,7 @@ function Router() {
       <Switch>
         <Route path="/" component={Dashboard} />
         <Route path="/chat" component={ChatList} />
+        <Route path="/chat/new" component={ChatNew} />
         <Route path="/chat/:id" component={ChatThread} />
         <Route path="/projects" component={ProjectList} />
         <Route path="/projects/new" component={ProjectNew} />
