@@ -133,7 +133,7 @@ Be concise, technical, and practical. Format code in markdown code blocks with t
 
   try {
     const stream = await openai.chat.completions.create({
-      model: "gpt-5.1",
+      model: "gpt-4.1",
       max_completion_tokens: 8192,
       messages: [systemPrompt, ...chatMessages],
       stream: true,

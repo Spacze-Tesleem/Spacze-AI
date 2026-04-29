@@ -1,21 +1,17 @@
 import React, { useState } from 'react';
 import { useLocation } from 'wouter';
 import { useCreateProject } from '@workspace/api-client-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Code2, Loader2, Sparkles } from 'lucide-react';
 import { parseSSE } from '@/lib/sse';
+import { Loader2, Sparkles, ArrowUp, Check } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const FRAMEWORKS = [
-  { id: 'react', name: 'React (Vite)', icon: '⚛️' },
-  { id: 'nextjs', name: 'Next.js', icon: '▲' },
-  { id: 'vue', name: 'Vue', icon: '💚' },
-  { id: 'flask', name: 'Flask (Python)', icon: '🌶️' },
-  { id: 'express', name: 'Express (Node)', icon: '🚂' },
-  { id: 'fastapi', name: 'FastAPI (Python)', icon: '⚡' },
+  { id: 'react',   name: 'React',    sub: 'Vite + TypeScript' },
+  { id: 'nextjs',  name: 'Next.js',  sub: 'App Router' },
+  { id: 'vue',     name: 'Vue',      sub: 'Vite + Composition API' },
+  { id: 'flask',   name: 'Flask',    sub: 'Python' },
+  { id: 'express', name: 'Express',  sub: 'Node.js' },
+  { id: 'fastapi', name: 'FastAPI',  sub: 'Python' },
 ];
 
 export default function ProjectNew() {
@@ -23,7 +19,6 @@ export default function ProjectNew() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [framework, setFramework] = useState('react');
-  
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateLog, setGenerateLog] = useState<string[]>([]);
 
@@ -35,127 +30,153 @@ export default function ProjectNew() {
 
     try {
       setIsGenerating(true);
-      
-      // 1. Create project
+
       const project = await createMutation.mutateAsync({
-        data: { name, description, framework }
+        data: { name, description, framework },
       });
 
-      // 2. Trigger generation via SSE
-      const url = `${import.meta.env.BASE_URL?.replace(/\/$/, "") || ""}/api/projects/${project.id}/generate`;
+      const url = `${import.meta.env.BASE_URL?.replace(/\/$/, '') || ''}/api/projects/${project.id}/generate`;
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: description })
+        body: JSON.stringify({ prompt: description }),
       });
 
-      await parseSSE<{content?: string, done?: boolean}>(
+      await parseSSE<{ content?: string; done?: boolean }>(
         response,
         (data) => {
-          if (data.content) {
-            setGenerateLog(prev => [...prev, data.content!]);
-          }
+          if (data.content) setGenerateLog((prev) => [...prev, data.content!]);
         },
         () => {
-          // Done, redirect to workspace
           setLocation(`/projects/${project.id}`);
         },
         (err) => {
           console.error('Generation failed:', err);
-          alert('Generation failed, but project was created.');
           setLocation(`/projects/${project.id}`);
         }
       );
-
     } catch (error) {
       console.error(error);
       setIsGenerating(false);
     }
   };
 
-  return (
-    <div className="flex-1 overflow-y-auto p-8 bg-background flex justify-center items-start">
-      <Card className="w-full max-w-2xl border-border bg-card shadow-lg mt-8">
-        <CardHeader className="border-b border-border bg-muted/30 pb-6">
-          <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center text-primary mb-4">
-            <Sparkles className="w-6 h-6" />
+  if (isGenerating) {
+    return (
+      <div className="flex flex-col h-full bg-background items-center justify-center px-4">
+        <div className="w-full max-w-xl space-y-6">
+          <div className="text-center space-y-3">
+            <div className="w-12 h-12 rounded-2xl bg-foreground flex items-center justify-center mx-auto">
+              <Loader2 className="w-6 h-6 text-background animate-spin" />
+            </div>
+            <h2 className="text-xl font-semibold text-foreground">Scaffolding your project…</h2>
+            <p className="text-sm text-muted-foreground">
+              The AI is generating files and wiring up dependencies.
+            </p>
           </div>
-          <CardTitle className="text-2xl">Create New Project</CardTitle>
-          <CardDescription className="text-base mt-2">
-            Describe what you want to build and the AI will scaffold the initial structure.
-          </CardDescription>
-        </CardHeader>
-        
-        <CardContent className="p-6">
-          {isGenerating ? (
-            <div className="space-y-6 py-8">
-              <div className="flex flex-col items-center justify-center space-y-4">
-                <Loader2 className="w-12 h-12 animate-spin text-primary" />
-                <h3 className="text-xl font-medium text-foreground">Scaffolding Project...</h3>
-                <p className="text-muted-foreground">The AI is generating files and wiring up dependencies.</p>
+
+          <div className="bg-[hsl(0,0%,10%)] rounded-2xl border border-border p-4 font-mono text-xs text-emerald-400 h-56 overflow-y-auto flex flex-col gap-0.5">
+            {generateLog.map((log, i) => (
+              <div key={i} className="leading-relaxed">
+                {log.startsWith('  ✓') ? (
+                  <span className="text-emerald-400">{log}</span>
+                ) : (
+                  <span className="text-muted-foreground">{log}</span>
+                )}
               </div>
-              
-              <div className="bg-black/50 rounded-lg p-4 font-mono text-xs text-primary h-64 overflow-y-auto border border-border mt-4 flex flex-col justify-end">
-                {generateLog.map((log, i) => (
-                  <div key={i} className="mb-1">{`> ${log}`}</div>
-                ))}
-                <div className="animate-pulse">{'> _'}</div>
+            ))}
+            <div className="animate-pulse text-muted-foreground">▋</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col h-full bg-background overflow-y-auto">
+      <div className="max-w-2xl mx-auto w-full px-6 py-10 space-y-8">
+
+        {/* Header */}
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold text-foreground tracking-tight">New project</h1>
+          <p className="text-sm text-muted-foreground">
+            Describe what you want to build and the AI will scaffold the initial structure.
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Project name */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-foreground">Project name</label>
+            <input
+              type="text"
+              placeholder="e.g. my-ecommerce-api"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              className="w-full px-4 py-2.5 bg-[hsl(0,0%,18%)] border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[hsl(0,0%,35%)] transition-colors font-mono"
+            />
+          </div>
+
+          {/* Framework */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-foreground">Framework</label>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {FRAMEWORKS.map((fw) => (
+                <button
+                  key={fw.id}
+                  type="button"
+                  onClick={() => setFramework(fw.id)}
+                  className={cn(
+                    'flex items-center justify-between px-4 py-3 rounded-xl border text-left transition-all',
+                    framework === fw.id
+                      ? 'border-foreground/40 bg-[hsl(0,0%,22%)] text-foreground'
+                      : 'border-border bg-[hsl(0,0%,16%)] text-muted-foreground hover:bg-[hsl(0,0%,18%)] hover:text-foreground'
+                  )}
+                >
+                  <div>
+                    <p className="text-sm font-medium leading-none">{fw.name}</p>
+                    <p className="text-[11px] mt-1 opacity-60">{fw.sub}</p>
+                  </div>
+                  {framework === fw.id && (
+                    <Check className="w-3.5 h-3.5 shrink-0 ml-2" />
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Description / prompt */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-foreground">Description & prompt</label>
+            <div className="relative bg-[hsl(0,0%,18%)] border border-border rounded-2xl focus-within:border-[hsl(0,0%,35%)] transition-colors">
+              <textarea
+                placeholder="Describe the application in detail — what endpoints, components, or features do you need?"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                required
+                rows={5}
+                className="w-full px-4 pt-4 pb-12 bg-transparent text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none leading-relaxed"
+              />
+              <div className="absolute bottom-3 right-3">
+                <button
+                  type="submit"
+                  disabled={!name.trim() || !description.trim()}
+                  className={cn(
+                    'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors',
+                    name.trim() && description.trim()
+                      ? 'bg-foreground text-background hover:bg-foreground/90'
+                      : 'bg-[hsl(0,0%,25%)] text-muted-foreground cursor-not-allowed'
+                  )}
+                >
+                  <Sparkles className="w-4 h-4" />
+                  Generate
+                </button>
               </div>
             </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="name">Project Name</Label>
-                <Input 
-                  id="name" 
-                  placeholder="e.g. e-commerce-api" 
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  required
-                  className="font-mono"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Framework / Environment</Label>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {FRAMEWORKS.map(fw => (
-                    <div 
-                      key={fw.id}
-                      className={`cursor-pointer border rounded-lg p-3 flex flex-col items-center justify-center gap-2 transition-all ${
-                        framework === fw.id 
-                          ? 'border-primary bg-primary/10 text-primary' 
-                          : 'border-border bg-card hover:bg-accent text-muted-foreground'
-                      }`}
-                      onClick={() => setFramework(fw.id)}
-                    >
-                      <span className="text-2xl">{fw.icon}</span>
-                      <span className="text-xs font-semibold">{fw.name}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="description">Project Description & Prompt</Label>
-                <Textarea 
-                  id="description" 
-                  placeholder="Describe the application. What endpoints does it need? What components? Be as detailed as you like." 
-                  value={description}
-                  onChange={e => setDescription(e.target.value)}
-                  className="min-h-[150px] resize-none font-mono text-sm"
-                  required
-                />
-              </div>
-
-              <Button type="submit" className="w-full h-12 text-lg" disabled={!name || !description}>
-                <Sparkles className="w-5 h-5 mr-2" />
-                Generate Project
-              </Button>
-            </form>
-          )}
-        </CardContent>
-      </Card>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
