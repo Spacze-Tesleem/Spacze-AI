@@ -182,6 +182,7 @@ export default function ChatThread() {
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
+  const [sendError, setSendError] = useState<string | null>(null);
   // 'chat' | 'code' — which tab is active in task mode
   const [activeTab, setActiveTab] = useState<'chat' | 'code'>('chat');
   // true once the first message has been sent — switches to task mode layout
@@ -229,6 +230,7 @@ export default function ChatThread() {
     setIsSending(true);
     setTaskMode(true);
     setStreamingContent('');
+    setSendError(null);
 
     const tempUserMsg = {
       id: Date.now(),
@@ -271,13 +273,15 @@ export default function ChatThread() {
           console.error(err);
           setIsSending(false);
           setStreamingContent('');
+          setSendError(err.message ?? 'Something went wrong. Check the API server is running.');
           queryClient.invalidateQueries({ queryKey: getGetOpenaiConversationQueryKey(convId) });
         },
       );
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
       setIsSending(false);
       setStreamingContent('');
+      setSendError(e?.message ?? 'Could not reach the API server.');
       queryClient.invalidateQueries({ queryKey: getGetOpenaiConversationQueryKey(convId) });
     }
   };
@@ -364,6 +368,18 @@ export default function ChatThread() {
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="w-5 h-5 text-muted-foreground animate-spin" />
         </div>
+        {sendError && (
+          <div className="mx-4 mb-2 px-4 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-start gap-2">
+            <span className="shrink-0 mt-0.5">⚠️</span>
+            <span>{sendError}</span>
+            <button
+              onClick={() => setSendError(null)}
+              className="ml-auto shrink-0 text-red-400/60 hover:text-red-400 transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
         {composer}
       </div>
     );
@@ -511,6 +527,20 @@ export default function ChatThread() {
               <div ref={messagesEndRef} />
             </div>
           </div>
+
+          {/* Error banner */}
+          {sendError && (
+            <div className="mx-4 mb-2 px-4 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-start gap-2">
+              <span className="shrink-0 mt-0.5">⚠️</span>
+              <span>{sendError}</span>
+              <button
+                onClick={() => setSendError(null)}
+                className="ml-auto shrink-0 text-red-400/60 hover:text-red-400 transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
 
           {/* Composer inside chat pane */}
           {composer}
