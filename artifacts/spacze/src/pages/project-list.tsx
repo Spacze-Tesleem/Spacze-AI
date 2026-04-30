@@ -18,7 +18,8 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 export default function ProjectList() {
-  const { data: projects, isLoading } = useListProjects();
+  const { data: rawProjects, isLoading } = useListProjects();
+  const projects = Array.isArray(rawProjects) ? rawProjects : undefined;
   const queryClient = useQueryClient();
 
   const deleteMutation = useDeleteProject({
