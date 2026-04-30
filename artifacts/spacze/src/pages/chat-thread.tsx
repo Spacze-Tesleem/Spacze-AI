@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useParams, useSearch } from 'wouter';
+import { useParams, useSearch, Link } from 'wouter';
 import {
   useGetOpenaiConversation,
   getGetOpenaiConversationQueryKey,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { parseSSE } from '@/lib/sse';
-import { ArrowUp, Loader2, Sparkles, Copy, Check } from 'lucide-react';
+import { ArrowUp, Loader2, Sparkles, Copy, Check, Plus, Mic, FolderOpen, ChevronDown } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cn } from '@/lib/utils';
@@ -223,39 +223,82 @@ export default function ChatThread() {
         </div>
       )}
 
-      {/* Input bar — fixed at bottom, ChatGPT style */}
-      <div className={cn('px-4 pb-4', isEmpty ? 'w-full max-w-3xl mx-auto' : '')}>
+      {/* Input bar — v0-style */}
+      <div className="px-4 pb-5 pt-2">
         <div className="max-w-3xl mx-auto">
-          <div className="relative flex items-end gap-2 bg-[hsl(0,0%,18%)] rounded-2xl border border-border px-4 py-3 focus-within:border-[hsl(0,0%,35%)] transition-colors">
+          <div className={cn(
+            'rounded-2xl border bg-[hsl(0,0%,14%)] transition-all duration-150',
+            'border-[hsl(0,0%,20%)] focus-within:border-[hsl(0,0%,30%)]',
+          )}>
+            {/* Textarea */}
             <textarea
               ref={textareaRef}
-              placeholder="Message Spacze AI…"
+              placeholder="Ask Spacze AI…"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               disabled={isSending}
-              rows={1}
-              className="flex-1 bg-transparent text-foreground text-sm placeholder:text-muted-foreground resize-none focus:outline-none leading-relaxed min-h-[24px] max-h-[200px] overflow-y-auto"
+              rows={2}
+              className="w-full bg-transparent text-[15px] text-white leading-relaxed placeholder:text-[hsl(0,0%,38%)] resize-none focus:outline-none px-4 pt-4 pb-2 min-h-[72px] max-h-[200px] overflow-y-auto"
             />
-            <button
-              onClick={handleSend}
-              disabled={!input.trim() || isSending}
-              className={cn(
-                'w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors mb-0.5',
-                input.trim() && !isSending
-                  ? 'bg-foreground text-background hover:bg-foreground/90'
-                  : 'bg-[hsl(0,0%,25%)] text-muted-foreground cursor-not-allowed'
-              )}
-            >
-              {isSending ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <ArrowUp className="w-4 h-4" />
-              )}
-            </button>
+
+            {/* Bottom toolbar */}
+            <div className="flex items-center gap-2 px-3 pb-3">
+              {/* + attach */}
+              <button
+                title="Attach file (coming soon)"
+                disabled
+                className="p-1.5 rounded-lg text-[hsl(0,0%,45%)] opacity-50 cursor-not-allowed"
+              >
+                <Plus className="w-[18px] h-[18px]" />
+              </button>
+
+              {/* Model pill */}
+              <button
+                disabled
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium border border-[hsl(0,0%,24%)] text-[hsl(0,0%,60%)] bg-[hsl(0,0%,18%)] opacity-80 cursor-default"
+              >
+                <div className="w-4 h-4 rounded-sm bg-[hsl(0,0%,30%)] flex items-center justify-center">
+                  <Sparkles className="w-2.5 h-2.5 text-white" />
+                </div>
+                Spacze AI
+                <ChevronDown className="w-3 h-3 opacity-50" />
+              </button>
+
+              {/* Spacer */}
+              <div className="flex-1" />
+
+              {/* Project context */}
+              <Link href="/projects">
+                <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[13px] text-[hsl(0,0%,55%)] border border-[hsl(0,0%,22%)] hover:border-[hsl(0,0%,32%)] hover:text-white bg-[hsl(0,0%,18%)] transition-colors">
+                  <FolderOpen className="w-3.5 h-3.5" />
+                  Project
+                  <ChevronDown className="w-3 h-3 opacity-50" />
+                </button>
+              </Link>
+
+              {/* Send / mic */}
+              <button
+                onClick={handleSend}
+                disabled={isSending}
+                className={cn(
+                  'w-9 h-9 rounded-xl flex items-center justify-center transition-all shrink-0',
+                  input.trim() && !isSending
+                    ? 'bg-white text-[hsl(0,0%,8%)] hover:bg-[hsl(0,0%,88%)]'
+                    : 'bg-[hsl(0,0%,20%)] text-[hsl(0,0%,38%)] cursor-not-allowed',
+                )}
+              >
+                {isSending
+                  ? <Loader2 className="w-4 h-4 animate-spin" />
+                  : input.trim()
+                    ? <ArrowUp className="w-4 h-4" />
+                    : <Mic className="w-4 h-4" />
+                }
+              </button>
+            </div>
           </div>
-          <p className="text-center text-[11px] text-muted-foreground mt-2">
-            Spacze AI can make mistakes. Press Shift+Enter for a new line.
+          <p className="text-center text-[11px] text-[hsl(0,0%,35%)] mt-2">
+            Spacze AI can make mistakes. <kbd className="font-mono">Shift+Enter</kbd> for new line.
           </p>
         </div>
       </div>

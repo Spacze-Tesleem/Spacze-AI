@@ -25,6 +25,8 @@ import {
   Plus,
   Loader2,
   X,
+  Mic,
+  FolderOpen,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -199,16 +201,16 @@ export default function Dashboard() {
           {showQuickActions && (
             <div
               ref={quickActionsRef}
-              className="absolute bottom-full mb-2 left-0 z-50 w-60 bg-[hsl(0,0%,16%)] border border-[hsl(0,0%,24%)] rounded-2xl shadow-2xl overflow-hidden"
+              className="absolute bottom-full mb-2 left-0 z-50 w-60 bg-[hsl(0,0%,14%)] border border-[hsl(0,0%,22%)] rounded-2xl shadow-2xl overflow-hidden"
             >
-              <p className="px-3.5 py-2.5 text-[10px] font-semibold uppercase tracking-widest text-[hsl(0,0%,45%)] border-b border-[hsl(0,0%,20%)]">
+              <p className="px-3.5 py-2.5 text-[10px] font-semibold uppercase tracking-widest text-[hsl(0,0%,40%)] border-b border-[hsl(0,0%,18%)]">
                 Quick actions
               </p>
               {QUICK_ACTIONS.map((action) => (
                 <button
                   key={action}
                   onClick={() => { setInput(action); setShowQuickActions(false); textareaRef.current?.focus(); }}
-                  className="w-full text-left px-3.5 py-2.5 text-[13px] text-[hsl(0,0%,70%)] hover:bg-[hsl(0,0%,20%)] hover:text-white transition-colors"
+                  className="w-full text-left px-3.5 py-2.5 text-[13px] text-[hsl(0,0%,65%)] hover:bg-[hsl(0,0%,18%)] hover:text-white transition-colors"
                 >
                   {action}
                 </button>
@@ -216,94 +218,115 @@ export default function Dashboard() {
             </div>
           )}
 
+          {/* v0-style composer box */}
           <div className={cn(
-            'rounded-2xl border bg-[hsl(0,0%,17%)] transition-all duration-150',
+            'rounded-2xl border bg-[hsl(0,0%,14%)] transition-all duration-150',
             isImageMode
-              ? 'border-amber-500/40 shadow-[0_0_0_1px_rgba(245,158,11,0.15)]'
-              : 'border-[hsl(0,0%,24%)] focus-within:border-[hsl(0,0%,34%)] focus-within:shadow-[0_0_0_1px_hsl(0,0%,34%,0.3)]',
+              ? 'border-amber-500/30'
+              : 'border-[hsl(0,0%,20%)] focus-within:border-[hsl(0,0%,30%)]',
           )}>
-            {/* Textarea */}
+            {/* Textarea — open, no inner chrome */}
             <textarea
               ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={isImageMode ? 'Describe the image you want to generate…' : 'Ask Spacze AI to…'}
+              placeholder={isImageMode ? 'Describe the image you want to generate…' : 'Ask Spacze AI to build…'}
               rows={3}
               disabled={isCreating || isGeneratingImage}
-              className="w-full bg-transparent text-[15px] text-white leading-relaxed placeholder:text-[hsl(0,0%,42%)] resize-none focus:outline-none px-4 pt-4 pb-2 min-h-[88px] max-h-[200px] overflow-y-auto"
+              className="w-full bg-transparent text-[15px] text-white leading-relaxed placeholder:text-[hsl(0,0%,38%)] resize-none focus:outline-none px-4 pt-4 pb-3 min-h-[96px] max-h-[200px] overflow-y-auto"
             />
 
-            {/* Toolbar */}
-            <div className="flex items-center justify-between px-3 pb-3 pt-1 gap-2">
-              {/* Left tools */}
-              <div className="flex items-center gap-0.5">
-                {[
-                  { key: 'attach', icon: Paperclip, disabled: true,  title: 'Attach file (coming soon)', active: false, onClick: () => {} },
-                  { key: 'quick',  icon: Zap,       disabled: false, title: 'Quick actions',             active: showQuickActions, onClick: () => setShowQuickActions(v => !v) },
-                  { key: 'web',    icon: Globe,     disabled: isImageMode, title: activeTools.has('web') ? 'Web search on' : 'Web search off', active: activeTools.has('web'), onClick: () => toggleTool('web') },
-                  { key: 'image',  icon: Image,     disabled: false, title: activeTools.has('image') ? 'Image mode on' : 'Generate an image', active: activeTools.has('image'), onClick: () => toggleTool('image') },
-                  { key: 'code',   icon: Code2,     disabled: isImageMode, title: activeTools.has('code') ? 'Code mode on' : 'Code mode off', active: activeTools.has('code'), onClick: () => toggleTool('code') },
-                ].map(({ key, icon: Icon, disabled, title, active, onClick }) => (
-                  <button
-                    key={key}
-                    title={title}
-                    disabled={disabled || isCreating || isGeneratingImage}
-                    onClick={onClick}
-                    className={cn(
-                      'p-2 rounded-lg transition-colors',
-                      active
-                        ? 'text-white bg-[hsl(0,0%,28%)]'
-                        : 'text-[hsl(0,0%,50%)] hover:text-white hover:bg-[hsl(0,0%,24%)]',
-                      (disabled || isCreating || isGeneratingImage) && 'opacity-30 cursor-not-allowed',
-                    )}
-                  >
-                    <Icon className="w-[17px] h-[17px]" />
-                  </button>
-                ))}
-              </div>
+            {/* Bottom toolbar — v0 layout */}
+            <div className="flex items-center gap-2 px-3 pb-3">
+              {/* + attach */}
+              <button
+                title="Attach file (coming soon)"
+                disabled
+                className="p-1.5 rounded-lg text-[hsl(0,0%,45%)] opacity-50 cursor-not-allowed"
+              >
+                <Plus className="w-[18px] h-[18px]" />
+              </button>
 
-              {/* Right: mode toggle + send */}
-              <div className="flex items-center gap-2 shrink-0">
-                {!isImageMode && (
-                  <button
-                    onClick={() => setMode(m => m === 'Agent' ? 'Plan' : 'Agent')}
-                    disabled={isCreating}
-                    className={cn(
-                      'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors border',
-                      mode === 'Plan'
-                        ? 'border-violet-500/50 text-violet-300 bg-violet-500/10'
-                        : 'border-[hsl(0,0%,30%)] text-[hsl(0,0%,60%)] hover:border-[hsl(0,0%,42%)] hover:text-white',
-                      isCreating && 'opacity-40 cursor-not-allowed',
-                    )}
-                  >
-                    <Sparkles className="w-3 h-3" />
-                    {mode}
-                    <ChevronDown className="w-3 h-3 opacity-50" />
-                  </button>
+              {/* Model selector pill */}
+              <button
+                onClick={() => setMode(m => m === 'Agent' ? 'Plan' : 'Agent')}
+                disabled={isCreating || isImageMode}
+                className={cn(
+                  'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium transition-colors border',
+                  mode === 'Plan'
+                    ? 'border-violet-500/40 text-violet-300 bg-violet-500/10'
+                    : 'border-[hsl(0,0%,24%)] text-[hsl(0,0%,65%)] hover:border-[hsl(0,0%,34%)] hover:text-white bg-[hsl(0,0%,18%)]',
+                  (isCreating || isImageMode) && 'opacity-40 cursor-not-allowed',
                 )}
+              >
+                <div className="w-4 h-4 rounded-sm bg-[hsl(0,0%,30%)] flex items-center justify-center">
+                  <Sparkles className="w-2.5 h-2.5 text-white" />
+                </div>
+                Spacze {mode}
+                <ChevronDown className="w-3 h-3 opacity-50" />
+              </button>
+
+              {/* Tool toggles */}
+              {[
+                { key: 'web',   icon: Globe,  label: 'Web',   tool: 'web'   as ActiveTool, disabled: isImageMode },
+                { key: 'image', icon: Image,  label: 'Image', tool: 'image' as ActiveTool, disabled: false },
+                { key: 'code',  icon: Code2,  label: 'Code',  tool: 'code'  as ActiveTool, disabled: isImageMode },
+              ].map(({ key, icon: Icon, label, tool, disabled }) => (
                 <button
-                  onClick={isImageMode ? handleGenerateImage : handleSend}
-                  disabled={!canSend}
+                  key={key}
+                  title={label}
+                  disabled={disabled || isCreating || isGeneratingImage}
+                  onClick={() => toggleTool(tool)}
                   className={cn(
-                    'w-8 h-8 rounded-full flex items-center justify-center transition-all shrink-0',
-                    canSend
-                      ? isImageMode
-                        ? 'bg-amber-500 text-white hover:bg-amber-400 shadow-md'
-                        : 'bg-white text-[hsl(0,0%,10%)] hover:bg-[hsl(0,0%,88%)] shadow-md'
-                      : 'bg-[hsl(0,0%,22%)] text-[hsl(0,0%,40%)] cursor-not-allowed',
+                    'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[13px] transition-colors border',
+                    activeTools.has(tool)
+                      ? 'border-[hsl(0,0%,38%)] text-white bg-[hsl(0,0%,24%)]'
+                      : 'border-transparent text-[hsl(0,0%,45%)] hover:text-white hover:bg-[hsl(0,0%,20%)]',
+                    (disabled || isCreating || isGeneratingImage) && 'opacity-30 cursor-not-allowed',
                   )}
                 >
-                  {isCreating || isGeneratingImage
-                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    : <ArrowUp className="w-3.5 h-3.5" />
-                  }
+                  <Icon className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">{label}</span>
                 </button>
-              </div>
+              ))}
+
+              {/* Spacer */}
+              <div className="flex-1" />
+
+              {/* Project context selector */}
+              <Link href="/projects">
+                <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[13px] text-[hsl(0,0%,55%)] border border-[hsl(0,0%,22%)] hover:border-[hsl(0,0%,32%)] hover:text-white bg-[hsl(0,0%,18%)] transition-colors">
+                  <FolderOpen className="w-3.5 h-3.5" />
+                  Project
+                  <ChevronDown className="w-3 h-3 opacity-50" />
+                </button>
+              </Link>
+
+              {/* Send / mic button */}
+              <button
+                onClick={isImageMode ? handleGenerateImage : handleSend}
+                disabled={!canSend}
+                className={cn(
+                  'w-9 h-9 rounded-xl flex items-center justify-center transition-all shrink-0',
+                  canSend
+                    ? isImageMode
+                      ? 'bg-amber-500 text-white hover:bg-amber-400'
+                      : 'bg-white text-[hsl(0,0%,8%)] hover:bg-[hsl(0,0%,88%)]'
+                    : 'bg-[hsl(0,0%,20%)] text-[hsl(0,0%,38%)] cursor-not-allowed',
+                )}
+              >
+                {isCreating || isGeneratingImage
+                  ? <Loader2 className="w-4 h-4 animate-spin" />
+                  : input.trim()
+                    ? <ArrowUp className="w-4 h-4" />
+                    : <Mic className="w-4 h-4" />
+                }
+              </button>
             </div>
           </div>
 
-          <p className="text-center text-[11px] text-[hsl(0,0%,38%)] mt-2">
+          <p className="text-center text-[11px] text-[hsl(0,0%,35%)] mt-2">
             Press <kbd className="font-mono">Enter</kbd> to send ·{' '}
             <kbd className="font-mono">Shift+Enter</kbd> for new line
           </p>
