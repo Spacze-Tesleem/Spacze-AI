@@ -135,9 +135,10 @@ export default function ProjectWorkspace() {
   const { data: project } = useGetProject(projId, {
     query: { enabled: !!projId, queryKey: getGetProjectQueryKey(projId) },
   });
-  const { data: files } = useListProjectFiles(projId, {
+  const { data: rawFiles } = useListProjectFiles(projId, {
     query: { enabled: !!projId, queryKey: getListProjectFilesQueryKey(projId) },
   });
+  const files = Array.isArray(rawFiles) ? rawFiles : undefined;
 
   const updateFileMutation = useUpdateProjectFile();
 
