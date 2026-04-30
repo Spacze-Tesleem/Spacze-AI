@@ -40,8 +40,9 @@ services:
         export DATABASE_URL=postgresql://spacze:spacze@localhost:5432/spacze
         export PORT=8080
         export NODE_ENV=development
-        export AI_INTEGRATIONS_OPENAI_BASE_URL=https://openrouter.ai/api/v1
+        export AI_INTEGRATIONS_OPENAI_BASE_URL=${AI_INTEGRATIONS_OPENAI_BASE_URL:-https://openrouter.ai/api/v1}
         export AI_CHAT_MODEL=${AI_CHAT_MODEL:-google/gemma-3-27b-it:free}
+        # AI_INTEGRATIONS_OPENAI_API_KEY is injected from the Ona environment secret
         pnpm --filter @workspace/api-server dev
       ready: curl -sf http://localhost:8080/api/healthz
 
