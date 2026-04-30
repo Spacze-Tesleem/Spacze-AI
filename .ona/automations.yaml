@@ -2,7 +2,7 @@ tasks:
   installDeps:
     name: Install dependencies
     description: Install all workspace dependencies with pnpm.
-    command: pnpm install --frozen-lockfile
+    command: pnpm install
     triggeredBy:
       - postDevcontainerStart
 
@@ -40,10 +40,7 @@ services:
         export DATABASE_URL=postgresql://spacze:spacze@localhost:5432/spacze
         export PORT=8080
         export NODE_ENV=development
-        # OpenRouter free-tier LLM — replace with your key from https://openrouter.ai/keys
         export AI_INTEGRATIONS_OPENAI_BASE_URL=https://openrouter.ai/api/v1
-        export AI_INTEGRATIONS_OPENAI_API_KEY=${AI_INTEGRATIONS_OPENAI_API_KEY:-your-openrouter-key-here}
-        # Override the model if you want a different one, e.g. meta-llama/llama-3.3-70b-instruct:free
         export AI_CHAT_MODEL=${AI_CHAT_MODEL:-google/gemma-3-27b-it:free}
         pnpm --filter @workspace/api-server dev
       ready: curl -sf http://localhost:8080/api/healthz

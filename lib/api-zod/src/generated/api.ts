@@ -226,6 +226,17 @@ export const DebugProjectCodeBody = zod.object({
 });
 
 /**
+ * @summary Run a project and stream simulated output via AI
+ */
+export const RunProjectCodeParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const RunProjectCodeBody = zod.object({
+  entryFile: zod.string().optional(),
+});
+
+/**
  * @summary Get project statistics and overview
  */
 export const GetProjectStatsResponse = zod.object({
