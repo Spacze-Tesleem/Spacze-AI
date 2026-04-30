@@ -1,21 +1,43 @@
-import { Card, CardContent } from "@/components/ui/card";
-import { AlertCircle } from "lucide-react";
+import React from 'react';
+import { Link } from 'wouter';
+import { ArrowLeft, Sparkles } from 'lucide-react';
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gray-50">
-      <Card className="w-full max-w-md mx-4">
-        <CardContent className="pt-6">
-          <div className="flex mb-4 gap-2">
-            <AlertCircle className="h-8 w-8 text-red-500" />
-            <h1 className="text-2xl font-bold text-gray-900">404 Page Not Found</h1>
-          </div>
+    <div className="flex flex-col h-full bg-background items-center justify-center px-4 select-none">
+      <div className="text-center space-y-6 max-w-sm">
+        {/* Glowing number */}
+        <div className="relative inline-block">
+          <span
+            className="text-[120px] font-bold leading-none tabular-nums"
+            style={{
+              background: 'linear-gradient(135deg, hsl(258 90% 66%), hsl(217 91% 60%))',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              filter: 'drop-shadow(0 0 30px hsl(258 90% 66% / 0.3))',
+            }}
+          >
+            404
+          </span>
+        </div>
 
-          <p className="mt-4 text-sm text-gray-600">
-            Did you forget to add the page to the router?
+        <div className="space-y-2">
+          <h1 className="text-xl font-semibold text-foreground">Page not found</h1>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            The page you're looking for doesn't exist or has been moved.
           </p>
-        </CardContent>
-      </Card>
+        </div>
+
+        <div className="flex items-center justify-center gap-3">
+          <Link href="/">
+            <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[hsl(258,90%,66%)] text-white text-sm font-medium hover:bg-[hsl(258,90%,60%)] transition-colors shadow-md shadow-[hsl(258,90%,66%,0.25)]">
+              <ArrowLeft className="w-4 h-4" />
+              Back to home
+            </button>
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }

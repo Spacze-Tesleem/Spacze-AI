@@ -6,26 +6,52 @@ import {
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { parseSSE } from '@/lib/sse';
-import { ArrowUp, Loader2, Sparkles, Copy, Check, Plus, Mic, FolderOpen, ChevronDown } from 'lucide-react';
+import {
+  ArrowUp,
+  Loader2,
+  Sparkles,
+  Copy,
+  Check,
+  Mic,
+  ChevronDown,
+  FolderOpen,
+  RotateCcw,
+} from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cn } from '@/lib/utils';
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
-  const handleCopy = () => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
   return (
     <button
-      onClick={handleCopy}
-      className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+      onClick={() => {
+        navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }}
+      className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-[hsl(220,13%,18%)] transition-colors"
       title="Copy"
     >
-      {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+      {copied
+        ? <Check className="w-3.5 h-3.5 text-emerald-400" />
+        : <Copy className="w-3.5 h-3.5" />
+      }
     </button>
+  );
+}
+
+function ThinkingDots() {
+  return (
+    <div className="flex gap-1 items-center h-5 px-1">
+      {[0, 150, 300].map((delay) => (
+        <span
+          key={delay}
+          className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce"
+          style={{ animationDelay: `${delay}ms` }}
+        />
+      ))}
+    </div>
   );
 }
 
@@ -44,7 +70,6 @@ export default function ChatThread() {
   const [streamingContent, setStreamingContent] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  // Tracks whether we've already fired the auto-send from ?q=
   const autoSentRef = useRef(false);
 
   const messages = conversation?.messages || [];
@@ -53,29 +78,19 @@ export default function ChatThread() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, streamingContent]);
 
-  // If the page was opened with ?q=<prompt> (from chat-new), fire the first
-  // message automatically once the conversation has loaded.
   useEffect(() => {
     if (autoSentRef.current) return;
     if (!convId || isLoading) return;
-
     const params = new URLSearchParams(search);
     const q = params.get('q');
     if (!q) return;
-
     autoSentRef.current = true;
-    // Remove the query param from the URL without a navigation
-    const cleanUrl = window.location.pathname;
-    window.history.replaceState(null, '', cleanUrl);
-
-    // Strip any SYSTEM_HINT prefix injected by the dashboard toolbar before
-    // sending — the hint is for the server system prompt, not the user message.
+    window.history.replaceState(null, '', window.location.pathname);
     const userText = q.replace(/^\[SYSTEM_HINT:[^\]]*\]\n?/, '');
     sendMessage(userText);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [convId, isLoading, search]);
 
-  // Auto-resize textarea
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
@@ -85,7 +100,6 @@ export default function ChatThread() {
 
   const sendMessage = async (content: string) => {
     if (!content.trim() || isSending || !convId) return;
-
     setIsSending(true);
     setStreamingContent('');
 
@@ -109,25 +123,23 @@ export default function ChatThread() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ content }),
-        }
+        },
       );
 
       await parseSSE<{ content?: string; done?: boolean }>(
         res,
-        (data) => {
-          if (data.content) setStreamingContent((prev) => prev + data.content);
-        },
+        (data) => { if (data.content) setStreamingContent((p) => p + data.content); },
         () => {
           setIsSending(false);
           setStreamingContent('');
           queryClient.invalidateQueries({ queryKey: getGetOpenaiConversationQueryKey(convId) });
         },
-        (error) => {
-          console.error(error);
+        (err) => {
+          console.error(err);
           setIsSending(false);
           setStreamingContent('');
           queryClient.invalidateQueries({ queryKey: getGetOpenaiConversationQueryKey(convId) });
-        }
+        },
       );
     } catch (e) {
       console.error(e);
@@ -155,7 +167,22 @@ export default function ChatThread() {
 
   return (
     <div className="flex flex-col h-full bg-background">
-      {/* Empty state — only shown briefly before auto-send fires */}
+      {/* Top bar */}
+      <header className="h-12 border-b border-border flex items-center justify-between px-5 shrink-0 bg-[hsl(220,13%,9%)]">
+        <div className="flex items-center gap-2.5">
+          <div className="w-6 h-6 rounded-md brand-gradient flex items-center justify-center">
+            <Sparkles className="w-3 h-3 text-white" />
+          </div>
+          <span className="text-sm font-medium text-foreground truncate max-w-[300px]">
+            {conversation?.title ?? 'Chat'}
+          </span>
+        </div>
+        <button className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-[hsl(220,13%,16%)] transition-colors">
+          <RotateCcw className="w-3.5 h-3.5" />
+        </button>
+      </header>
+
+      {/* Loading / empty */}
       {isEmpty && (
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="w-5 h-5 text-muted-foreground animate-spin" />
@@ -166,18 +193,23 @@ export default function ChatThread() {
       {!isEmpty && (
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-3xl mx-auto px-4 py-8 space-y-8">
-            {messages.map((msg) => (
-              <div key={msg.id} className={cn('group', msg.role === 'user' ? 'flex justify-end' : '')}>
+            {(messages as any[]).map((msg, i) => (
+              <div
+                key={msg.id}
+                className={cn(
+                  'group animate-fade-up',
+                  msg.role === 'user' ? 'flex justify-end' : '',
+                )}
+                style={{ animationDelay: `${i * 20}ms` }}
+              >
                 {msg.role === 'user' ? (
-                  /* User bubble */
-                  <div className="max-w-[85%] bg-[hsl(0,0%,20%)] text-foreground rounded-3xl px-5 py-3 text-sm leading-relaxed whitespace-pre-wrap">
+                  <div className="max-w-[80%] bg-[hsl(220,13%,18%)] text-foreground rounded-2xl rounded-br-sm px-5 py-3 text-sm leading-relaxed whitespace-pre-wrap border border-[hsl(220,13%,24%)]">
                     {msg.content}
                   </div>
                 ) : (
-                  /* Assistant message — no bubble, just text */
-                  <div className="flex gap-4">
-                    <div className="w-7 h-7 rounded-full bg-foreground flex items-center justify-center shrink-0 mt-0.5">
-                      <Sparkles className="w-3.5 h-3.5 text-background" />
+                  <div className="flex gap-3.5">
+                    <div className="w-7 h-7 rounded-full brand-gradient flex items-center justify-center shrink-0 mt-0.5">
+                      <Sparkles className="w-3.5 h-3.5 text-white" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="prose prose-sm prose-chat max-w-none text-foreground">
@@ -194,13 +226,13 @@ export default function ChatThread() {
               </div>
             ))}
 
-            {/* Streaming assistant message */}
+            {/* Streaming */}
             {isSending && (
-              <div className="flex gap-4">
-                <div className="w-7 h-7 rounded-full bg-foreground flex items-center justify-center shrink-0 mt-0.5">
-                  <Sparkles className="w-3.5 h-3.5 text-background" />
+              <div className="flex gap-3.5 animate-fade-up">
+                <div className="w-7 h-7 rounded-full brand-gradient flex items-center justify-center shrink-0 mt-0.5">
+                  <Sparkles className="w-3.5 h-3.5 text-white" />
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 pt-0.5">
                   {streamingContent ? (
                     <div className="prose prose-sm prose-chat max-w-none text-foreground">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>
@@ -208,11 +240,7 @@ export default function ChatThread() {
                       </ReactMarkdown>
                     </div>
                   ) : (
-                    <div className="flex gap-1 items-center h-6">
-                      <span className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: '0ms' }} />
-                      <span className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: '150ms' }} />
-                      <span className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: '300ms' }} />
-                    </div>
+                    <ThinkingDots />
                   )}
                 </div>
               </div>
@@ -223,14 +251,15 @@ export default function ChatThread() {
         </div>
       )}
 
-      {/* Input bar — v0-style */}
-      <div className="px-4 pb-5 pt-2">
+      {/* Input bar */}
+      <div className="px-4 pb-5 pt-2 shrink-0">
         <div className="max-w-3xl mx-auto">
-          <div className={cn(
-            'rounded-2xl border bg-[hsl(0,0%,14%)] transition-all duration-150',
-            'border-[hsl(0,0%,20%)] focus-within:border-[hsl(0,0%,30%)]',
-          )}>
-            {/* Textarea */}
+          <div
+            className={cn(
+              'rounded-2xl border bg-[hsl(220,13%,12%)] transition-all duration-200',
+              'border-[hsl(220,13%,20%)] composer-glow',
+            )}
+          >
             <textarea
               ref={textareaRef}
               placeholder="Ask Spacze AI…"
@@ -239,53 +268,42 @@ export default function ChatThread() {
               onKeyDown={handleKeyDown}
               disabled={isSending}
               rows={2}
-              className="w-full bg-transparent text-[15px] text-white leading-relaxed placeholder:text-[hsl(0,0%,38%)] resize-none focus:outline-none px-4 pt-4 pb-2 min-h-[72px] max-h-[200px] overflow-y-auto"
+              className="w-full bg-transparent text-[15px] text-foreground leading-relaxed placeholder:text-muted-foreground/60 resize-none focus:outline-none px-5 pt-4 pb-2 min-h-[72px] max-h-[200px] overflow-y-auto"
             />
 
-            {/* Bottom toolbar */}
-            <div className="flex items-center gap-2 px-3 pb-3">
-              {/* + attach */}
-              <button
-                title="Attach file (coming soon)"
-                disabled
-                className="p-1.5 rounded-lg text-[hsl(0,0%,45%)] opacity-50 cursor-not-allowed"
-              >
-                <Plus className="w-[18px] h-[18px]" />
-              </button>
-
+            <div className="flex items-center gap-2 px-4 pb-3.5">
               {/* Model pill */}
               <button
                 disabled
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium border border-[hsl(0,0%,24%)] text-[hsl(0,0%,60%)] bg-[hsl(0,0%,18%)] opacity-80 cursor-default"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-[hsl(220,13%,22%)] text-muted-foreground bg-[hsl(220,13%,15%)] cursor-default"
               >
-                <div className="w-4 h-4 rounded-sm bg-[hsl(0,0%,30%)] flex items-center justify-center">
-                  <Sparkles className="w-2.5 h-2.5 text-white" />
+                <div className="w-3.5 h-3.5 rounded-sm brand-gradient flex items-center justify-center">
+                  <Sparkles className="w-2 h-2 text-white" />
                 </div>
                 Spacze AI
                 <ChevronDown className="w-3 h-3 opacity-50" />
               </button>
 
-              {/* Spacer */}
               <div className="flex-1" />
 
               {/* Project context */}
               <Link href="/projects">
-                <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[13px] text-[hsl(0,0%,55%)] border border-[hsl(0,0%,22%)] hover:border-[hsl(0,0%,32%)] hover:text-white bg-[hsl(0,0%,18%)] transition-colors">
+                <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-muted-foreground border border-[hsl(220,13%,22%)] hover:border-[hsl(220,13%,32%)] hover:text-foreground bg-[hsl(220,13%,15%)] transition-colors">
                   <FolderOpen className="w-3.5 h-3.5" />
                   Project
                   <ChevronDown className="w-3 h-3 opacity-50" />
                 </button>
               </Link>
 
-              {/* Send / mic */}
+              {/* Send */}
               <button
                 onClick={handleSend}
                 disabled={isSending}
                 className={cn(
                   'w-9 h-9 rounded-xl flex items-center justify-center transition-all shrink-0',
                   input.trim() && !isSending
-                    ? 'bg-white text-[hsl(0,0%,8%)] hover:bg-[hsl(0,0%,88%)]'
-                    : 'bg-[hsl(0,0%,20%)] text-[hsl(0,0%,38%)] cursor-not-allowed',
+                    ? 'bg-[hsl(258,90%,66%)] text-white hover:bg-[hsl(258,90%,60%)] shadow-lg shadow-[hsl(258,90%,66%,0.3)]'
+                    : 'bg-[hsl(220,13%,18%)] text-muted-foreground cursor-not-allowed',
                 )}
               >
                 {isSending
@@ -297,7 +315,7 @@ export default function ChatThread() {
               </button>
             </div>
           </div>
-          <p className="text-center text-[11px] text-[hsl(0,0%,35%)] mt-2">
+          <p className="text-center text-[11px] text-muted-foreground/40 mt-2">
             Spacze AI can make mistakes. <kbd className="font-mono">Shift+Enter</kbd> for new line.
           </p>
         </div>

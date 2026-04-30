@@ -22,6 +22,9 @@ import {
   ChevronDown,
   Play,
   Check,
+  Terminal,
+  RefreshCw,
+  X,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -54,6 +57,17 @@ function buildTree(files: any[]) {
   return root;
 }
 
+// Language → colour mapping for file icons
+const LANG_COLORS: Record<string, string> = {
+  typescript: 'text-sky-400',
+  javascript: 'text-yellow-400',
+  python:     'text-teal-400',
+  html:       'text-orange-400',
+  css:        'text-violet-400',
+  json:       'text-amber-400',
+  markdown:   'text-muted-foreground',
+};
+
 function FileTreeNode({
   node,
   level,
@@ -67,21 +81,23 @@ function FileTreeNode({
 }) {
   const [expanded, setExpanded] = useState(level < 2);
   const isFile = node.type === 'file';
-  const indent = level * 12 + 8;
+  const indent = level * 14 + 10;
+  const langColor = LANG_COLORS[node.language] ?? 'text-muted-foreground';
 
   if (isFile) {
+    const isSelected = selectedId === node.id;
     return (
       <button
         className={cn(
-          'w-full flex items-center gap-2 py-1 text-[13px] font-mono rounded-md transition-colors text-left',
-          selectedId === node.id
-            ? 'bg-[hsl(0,0%,22%)] text-foreground'
-            : 'text-muted-foreground hover:bg-[hsl(0,0%,18%)] hover:text-foreground'
+          'w-full flex items-center gap-2 py-[5px] text-[12.5px] font-mono rounded-md transition-colors text-left group',
+          isSelected
+            ? 'bg-[hsl(258,90%,66%,0.12)] text-foreground border border-[hsl(258,90%,66%,0.2)]'
+            : 'text-muted-foreground hover:bg-[hsl(220,13%,16%)] hover:text-foreground border border-transparent',
         )}
         style={{ paddingLeft: `${indent}px`, paddingRight: '8px' }}
         onClick={() => onSelect(node)}
       >
-        <FileCode className="w-3.5 h-3.5 shrink-0 opacity-60" />
+        <FileCode className={cn('w-3.5 h-3.5 shrink-0', isSelected ? langColor : 'opacity-50')} />
         <span className="truncate">{node.name}</span>
       </button>
     );
@@ -90,20 +106,18 @@ function FileTreeNode({
   return (
     <div>
       <button
-        className="w-full flex items-center gap-2 py-1 text-[13px] font-mono text-muted-foreground hover:text-foreground hover:bg-[hsl(0,0%,18%)] rounded-md transition-colors text-left"
+        className="w-full flex items-center gap-1.5 py-[5px] text-[12.5px] font-mono text-muted-foreground hover:text-foreground hover:bg-[hsl(220,13%,16%)] rounded-md transition-colors text-left"
         style={{ paddingLeft: `${indent}px`, paddingRight: '8px' }}
         onClick={() => setExpanded(!expanded)}
       >
-        {expanded ? (
-          <ChevronDown className="w-3 h-3 shrink-0 opacity-50" />
-        ) : (
-          <ChevronRight className="w-3 h-3 shrink-0 opacity-50" />
-        )}
-        {expanded ? (
-          <FolderOpen className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
-        ) : (
-          <Folder className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
-        )}
+        {expanded
+          ? <ChevronDown className="w-3 h-3 shrink-0 opacity-50" />
+          : <ChevronRight className="w-3 h-3 shrink-0 opacity-50" />
+        }
+        {expanded
+          ? <FolderOpen className="w-3.5 h-3.5 shrink-0 text-amber-400/70" />
+          : <Folder className="w-3.5 h-3.5 shrink-0 text-amber-400/50" />
+        }
         <span className="truncate">{node.name}</span>
       </button>
       {expanded &&
@@ -143,7 +157,6 @@ export default function ProjectWorkspace() {
   const updateFileMutation = useUpdateProjectFile();
 
   const [selectedFileId, setSelectedFileId] = useState<number | null>(null);
-  // Track editor content separately; only sync from server when the selected file changes
   const [editorContent, setEditorContent] = useState('');
   const prevSelectedIdRef = useRef<number | null>(null);
 
@@ -155,9 +168,11 @@ export default function ProjectWorkspace() {
   const [isRunning, setIsRunning] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  const aiOutputEndRef = useRef<HTMLDivElement>(null);
+  const runOutputEndRef = useRef<HTMLDivElement>(null);
+
   const selectedFile = files?.find((f) => f.id === selectedFileId);
 
-  // Only overwrite editor content when the selected file actually changes
   useEffect(() => {
     if (selectedFileId !== prevSelectedIdRef.current) {
       prevSelectedIdRef.current = selectedFileId;
@@ -165,24 +180,28 @@ export default function ProjectWorkspace() {
     }
   }, [selectedFileId, selectedFile]);
 
+  useEffect(() => {
+    aiOutputEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [aiOutput]);
+
+  useEffect(() => {
+    runOutputEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [runOutput]);
+
   const tree = files ? buildTree(files) : null;
   const isDirty = selectedFile && editorContent !== selectedFile.content;
 
   const handleSave = () => {
     if (!selectedFile || !isDirty) return;
     updateFileMutation.mutate(
-      {
-        id: projId,
-        fileId: selectedFile.id,
-        data: { content: editorContent },
-      },
+      { id: projId, fileId: selectedFile.id, data: { content: editorContent } },
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getListProjectFilesQueryKey(projId) });
           setSaved(true);
           setTimeout(() => setSaved(false), 2000);
         },
-      }
+      },
     );
   };
 
@@ -205,7 +224,7 @@ export default function ProjectWorkspace() {
           setPrompt('');
           queryClient.invalidateQueries({ queryKey: getListProjectFilesQueryKey(projId) });
         },
-        (err) => { console.error(err); setIsProcessing(false); }
+        (err) => { console.error(err); setIsProcessing(false); },
       );
     } catch (e) {
       console.error(e);
@@ -228,7 +247,7 @@ export default function ProjectWorkspace() {
         res,
         (data) => { if (data.content) setAiOutput((p) => p + data.content); },
         () => { setIsProcessing(false); setPrompt(''); },
-        (err) => { console.error(err); setIsProcessing(false); }
+        (err) => { console.error(err); setIsProcessing(false); },
       );
     } catch (e) {
       console.error(e);
@@ -252,7 +271,7 @@ export default function ProjectWorkspace() {
         res,
         (data) => { if (data.content) setRunOutput((p) => p + data.content); },
         () => { setIsRunning(false); },
-        (err) => { console.error(err); setIsRunning(false); }
+        (err) => { console.error(err); setIsRunning(false); },
       );
     } catch (e) {
       console.error(e);
@@ -260,19 +279,22 @@ export default function ProjectWorkspace() {
     }
   };
 
+  const langColor = selectedFile ? (LANG_COLORS[selectedFile.language] ?? 'text-muted-foreground') : '';
+
   return (
     <div className="flex flex-col h-full bg-background overflow-hidden">
-      {/* Top bar */}
-      <header className="h-12 border-b border-border flex items-center justify-between px-4 shrink-0 bg-[hsl(0,0%,12%)]">
-        <div className="flex items-center gap-3">
+      {/* ── Top bar ─────────────────────────────────────────────────────────── */}
+      <header className="h-11 border-b border-border flex items-center justify-between px-4 shrink-0 bg-[hsl(220,13%,9%)]">
+        <div className="flex items-center gap-2.5">
           <Link href="/projects">
-            <button className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-[hsl(0,0%,20%)] transition-colors">
-              <ArrowLeft className="w-4 h-4" />
+            <button className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-[hsl(220,13%,16%)] transition-colors">
+              <ArrowLeft className="w-3.5 h-3.5" />
             </button>
           </Link>
+          <div className="w-px h-4 bg-border" />
           <span className="text-sm font-medium text-foreground">{project?.name ?? 'Workspace'}</span>
           {project && (
-            <span className="text-[11px] font-mono text-muted-foreground bg-[hsl(0,0%,20%)] px-2 py-0.5 rounded-md">
+            <span className="text-[11px] font-mono text-muted-foreground bg-[hsl(220,13%,16%)] border border-[hsl(220,13%,22%)] px-2 py-0.5 rounded-md">
               {project.framework}
             </span>
           )}
@@ -283,57 +305,70 @@ export default function ProjectWorkspace() {
             </span>
           )}
         </div>
+
         <button
           onClick={handleRun}
           disabled={isRunning || isProcessing || !files?.length}
           className={cn(
-            'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border transition-colors',
+            'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all',
             isRunning
               ? 'text-emerald-400 border-emerald-400/30 bg-emerald-400/10 cursor-not-allowed'
               : files?.length
-              ? 'text-muted-foreground hover:text-foreground hover:bg-[hsl(0,0%,20%)] border-border'
-              : 'text-muted-foreground/40 border-border/40 cursor-not-allowed'
+                ? 'text-foreground border-[hsl(220,13%,24%)] bg-[hsl(220,13%,16%)] hover:bg-[hsl(220,13%,20%)] hover:border-[hsl(220,13%,30%)]'
+                : 'text-muted-foreground/40 border-border/40 cursor-not-allowed',
           )}
         >
-          {isRunning ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-          ) : (
-            <Play className="w-3.5 h-3.5" />
-          )}
+          {isRunning
+            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            : <Play className="w-3.5 h-3.5" />
+          }
           {isRunning ? 'Running…' : 'Run'}
         </button>
       </header>
 
       <div className="flex-1 flex overflow-hidden">
-        {/* File tree sidebar */}
-        <div className="w-56 border-r border-border bg-[hsl(0,0%,11%)] flex flex-col shrink-0">
-          <div className="px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50 border-b border-border">
-            Explorer
+        {/* ── File tree ───────────────────────────────────────────────────── */}
+        <div className="w-52 border-r border-border bg-[hsl(220,13%,8%)] flex flex-col shrink-0">
+          <div className="px-3 py-2 flex items-center justify-between border-b border-border">
+            <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">
+              Explorer
+            </span>
+            <span className="text-[10px] text-muted-foreground/40 tabular-nums">
+              {files?.length ?? 0} files
+            </span>
           </div>
           <div className="flex-1 overflow-y-auto py-1 px-1">
-            {tree &&
-              (Object.values(tree.children) as any[]).map((child) => (
-                <FileTreeNode
-                  key={child.name}
-                  node={child}
-                  level={0}
-                  selectedId={selectedFileId}
-                  onSelect={(node) => setSelectedFileId(node.id)}
-                />
-              ))}
+            {tree
+              ? (Object.values(tree.children) as any[]).map((child) => (
+                  <FileTreeNode
+                    key={child.name}
+                    node={child}
+                    level={0}
+                    selectedId={selectedFileId}
+                    onSelect={(node) => setSelectedFileId(node.id)}
+                  />
+                ))
+              : (
+                <div className="flex items-center justify-center h-20">
+                  <Loader2 className="w-4 h-4 text-muted-foreground animate-spin" />
+                </div>
+              )
+            }
           </div>
         </div>
 
-        {/* Editor */}
-        <div className="flex-1 flex flex-col bg-[hsl(0,0%,10%)] overflow-hidden">
+        {/* ── Editor ──────────────────────────────────────────────────────── */}
+        <div className="flex-1 flex flex-col bg-[hsl(220,13%,9%)] overflow-hidden">
           {selectedFile ? (
             <>
               {/* Tab bar */}
-              <div className="h-9 flex items-center border-b border-border bg-[hsl(0,0%,12%)] shrink-0">
-                <div className="flex items-center gap-2 px-4 h-full border-r border-border bg-[hsl(0,0%,10%)] text-[13px] font-mono text-foreground border-t-2 border-t-foreground/60">
-                  <FileCode className="w-3.5 h-3.5 text-muted-foreground" />
+              <div className="h-9 flex items-center border-b border-border bg-[hsl(220,13%,10%)] shrink-0">
+                <div className="flex items-center gap-2 px-4 h-full border-r border-border bg-[hsl(220,13%,9%)] text-[12.5px] font-mono text-foreground border-t-2 border-t-[hsl(258,90%,66%,0.7)]">
+                  <FileCode className={cn('w-3.5 h-3.5', langColor)} />
                   <span>{selectedFile.path.split('/').pop()}</span>
-                  {isDirty && <span className="w-1.5 h-1.5 rounded-full bg-foreground/60 ml-1" />}
+                  {isDirty && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-[hsl(258,90%,66%)] ml-0.5" />
+                  )}
                 </div>
                 <div className="flex-1" />
                 <button
@@ -342,8 +377,8 @@ export default function ProjectWorkspace() {
                   className={cn(
                     'flex items-center gap-1.5 px-3 py-1 mr-2 rounded-md text-xs transition-colors',
                     isDirty
-                      ? 'text-foreground hover:bg-[hsl(0,0%,20%)]'
-                      : 'text-muted-foreground/40 cursor-not-allowed'
+                      ? 'text-foreground hover:bg-[hsl(220,13%,18%)]'
+                      : 'text-muted-foreground/30 cursor-not-allowed',
                   )}
                 >
                   {saved ? (
@@ -361,65 +396,66 @@ export default function ProjectWorkspace() {
                 <textarea
                   value={editorContent}
                   onChange={(e) => setEditorContent(e.target.value)}
-                  className="w-full h-full bg-transparent text-[hsl(0,0%,85%)] font-mono text-[13px] leading-relaxed p-4 resize-none focus:outline-none whitespace-pre"
+                  className="w-full h-full bg-transparent text-[hsl(210,17%,88%)] font-mono text-[13px] leading-[1.7] p-5 resize-none focus:outline-none whitespace-pre"
                   spellCheck={false}
                 />
               </div>
             </>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center gap-3 text-muted-foreground">
-              <FileCode className="w-12 h-12 opacity-10" />
-              <p className="text-sm">Select a file to start editing</p>
+            <div className="flex-1 flex flex-col items-center justify-center gap-3 text-muted-foreground select-none">
+              <FileCode className="w-10 h-10 opacity-10" />
+              <p className="text-sm text-muted-foreground/60">Select a file to edit</p>
             </div>
           )}
         </div>
 
-        {/* AI panel */}
-        <div className="w-80 border-l border-border bg-[hsl(0,0%,12%)] flex flex-col shrink-0">
+        {/* ── AI panel ────────────────────────────────────────────────────── */}
+        <div className="w-[300px] border-l border-border bg-[hsl(220,13%,10%)] flex flex-col shrink-0">
           {/* Tabs */}
           <div className="flex border-b border-border shrink-0">
-            {(['generate', 'debug', 'run'] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={cn(
-                  'flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold uppercase tracking-wider transition-colors',
-                  activeTab === tab
-                    ? 'text-foreground border-b-2 border-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
-              >
-                {tab === 'generate' ? (
-                  <Sparkles className="w-3.5 h-3.5" />
-                ) : tab === 'debug' ? (
-                  <Bug className="w-3.5 h-3.5" />
-                ) : (
-                  <Play className="w-3.5 h-3.5" />
-                )}
-                {tab}
-              </button>
-            ))}
+            {(['generate', 'debug', 'run'] as const).map((tab) => {
+              const icons = { generate: Sparkles, debug: Bug, run: Terminal };
+              const Icon = icons[tab];
+              return (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={cn(
+                    'flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-semibold uppercase tracking-wider transition-colors',
+                    activeTab === tab
+                      ? 'text-foreground border-b-2 border-[hsl(258,90%,66%)]'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  {tab}
+                </button>
+              );
+            })}
           </div>
 
-          {/* Output */}
+          {/* Output area */}
           <div className="flex-1 overflow-y-auto p-3 min-h-0">
             {activeTab === 'run' ? (
               runOutput ? (
-                <pre className="font-mono text-[12px] text-emerald-400 whitespace-pre-wrap leading-relaxed">
-                  {runOutput}
-                  {isRunning && <span className="animate-pulse">▌</span>}
-                </pre>
+                <div className="font-mono text-[12px] leading-relaxed">
+                  <pre className="text-emerald-400 whitespace-pre-wrap">
+                    {runOutput}
+                    {isRunning && <span className="cursor-blink text-muted-foreground">▌</span>}
+                  </pre>
+                  <div ref={runOutputEndRef} />
+                </div>
               ) : (
-                <div className="flex flex-col items-center justify-center h-full gap-2 text-center text-muted-foreground py-8">
+                <div className="flex flex-col items-center justify-center h-full gap-2.5 text-center text-muted-foreground py-8">
                   {isRunning ? (
                     <>
-                      <Loader2 className="w-8 h-8 opacity-20 animate-spin" />
-                      <p className="text-xs">Starting…</p>
+                      <Loader2 className="w-7 h-7 opacity-20 animate-spin" />
+                      <p className="text-xs">Starting simulation…</p>
                     </>
                   ) : (
                     <>
-                      <Play className="w-8 h-8 opacity-20" />
-                      <p className="text-xs">Press Run to simulate project execution</p>
+                      <Terminal className="w-7 h-7 opacity-15" />
+                      <p className="text-xs">Press Run to simulate execution</p>
                     </>
                   )}
                 </div>
@@ -427,25 +463,31 @@ export default function ProjectWorkspace() {
             ) : aiOutput ? (
               <div className="text-[13px]">
                 {activeTab === 'generate' ? (
-                  <pre className="font-mono text-emerald-400 whitespace-pre-wrap leading-relaxed text-[12px]">
-                    {aiOutput}
-                  </pre>
+                  <>
+                    <pre className="font-mono text-emerald-400 whitespace-pre-wrap leading-relaxed text-[12px]">
+                      {aiOutput}
+                    </pre>
+                    <div ref={aiOutputEndRef} />
+                  </>
                 ) : (
-                  <div className="prose prose-sm prose-chat max-w-none text-foreground">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{aiOutput}</ReactMarkdown>
-                  </div>
+                  <>
+                    <div className="prose prose-sm prose-chat max-w-none text-foreground">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{aiOutput}</ReactMarkdown>
+                    </div>
+                    <div ref={aiOutputEndRef} />
+                  </>
                 )}
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center h-full gap-2 text-center text-muted-foreground py-8">
+              <div className="flex flex-col items-center justify-center h-full gap-2.5 text-center text-muted-foreground py-8">
                 {activeTab === 'generate' ? (
                   <>
-                    <Sparkles className="w-8 h-8 opacity-20" />
+                    <Sparkles className="w-7 h-7 opacity-15" />
                     <p className="text-xs">Describe what to generate or modify</p>
                   </>
                 ) : (
                   <>
-                    <Bug className="w-8 h-8 opacity-20" />
+                    <Bug className="w-7 h-7 opacity-15" />
                     <p className="text-xs">Paste an error or describe the issue</p>
                   </>
                 )}
@@ -453,9 +495,25 @@ export default function ProjectWorkspace() {
             )}
           </div>
 
-          {/* Input — hidden on the Run tab */}
+          {/* Clear output button — shown when there's output */}
+          {(aiOutput || runOutput) && (
+            <div className="px-3 pb-1 shrink-0">
+              <button
+                onClick={() => { setAiOutput(''); setRunOutput(''); }}
+                className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="w-3 h-3" />
+                Clear output
+              </button>
+            </div>
+          )}
+
+          {/* Input — hidden on Run tab */}
           <div className={cn('p-3 border-t border-border shrink-0', activeTab === 'run' && 'hidden')}>
-            <div className="relative bg-[hsl(0,0%,16%)] border border-border rounded-xl focus-within:border-[hsl(0,0%,30%)] transition-colors">
+            <div className={cn(
+              'relative bg-[hsl(220,13%,14%)] border rounded-xl transition-all',
+              'border-[hsl(220,13%,22%)] focus-within:border-[hsl(258,90%,66%,0.4)]',
+            )}>
               <textarea
                 placeholder={
                   activeTab === 'generate'
@@ -471,16 +529,16 @@ export default function ProjectWorkspace() {
                   }
                 }}
                 rows={3}
-                className="w-full px-3 pt-3 pb-10 bg-transparent text-[13px] text-foreground placeholder:text-muted-foreground resize-none focus:outline-none leading-relaxed"
+                className="w-full px-3 pt-3 pb-10 bg-transparent text-[13px] text-foreground placeholder:text-muted-foreground/60 resize-none focus:outline-none leading-relaxed"
               />
               <button
                 onClick={activeTab === 'generate' ? handleGenerate : handleDebug}
                 disabled={!prompt.trim() || isProcessing}
                 className={cn(
-                  'absolute bottom-2 right-2 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
+                  'absolute bottom-2 right-2 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all',
                   prompt.trim() && !isProcessing
-                    ? 'bg-foreground text-background hover:bg-foreground/90'
-                    : 'bg-[hsl(0,0%,22%)] text-muted-foreground cursor-not-allowed'
+                    ? 'bg-[hsl(258,90%,66%)] text-white hover:bg-[hsl(258,90%,60%)]'
+                    : 'bg-[hsl(220,13%,20%)] text-muted-foreground cursor-not-allowed',
                 )}
               >
                 {isProcessing ? (
