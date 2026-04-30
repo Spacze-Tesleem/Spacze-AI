@@ -146,10 +146,12 @@ export default function ProjectWorkspace() {
   const [editorContent, setEditorContent] = useState('');
   const prevSelectedIdRef = useRef<number | null>(null);
 
-  const [activeTab, setActiveTab] = useState<'generate' | 'debug'>('generate');
+  const [activeTab, setActiveTab] = useState<'generate' | 'debug' | 'run'>('generate');
   const [prompt, setPrompt] = useState('');
   const [aiOutput, setAiOutput] = useState('');
+  const [runOutput, setRunOutput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isRunning, setIsRunning] = useState(false);
   const [saved, setSaved] = useState(false);
 
   const selectedFile = files?.find((f) => f.id === selectedFileId);
@@ -233,6 +235,30 @@ export default function ProjectWorkspace() {
     }
   };
 
+  const handleRun = async () => {
+    if (isRunning || isProcessing) return;
+    setIsRunning(true);
+    setRunOutput('');
+    setActiveTab('run');
+    try {
+      const url = `${import.meta.env.BASE_URL?.replace(/\/$/, '') || ''}/api/projects/${projId}/run`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(selectedFileId ? { entryFile: selectedFile?.path } : {}),
+      });
+      await parseSSE<{ content?: string; done?: boolean }>(
+        res,
+        (data) => { if (data.content) setRunOutput((p) => p + data.content); },
+        () => { setIsRunning(false); },
+        (err) => { console.error(err); setIsRunning(false); }
+      );
+    } catch (e) {
+      console.error(e);
+      setIsRunning(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full bg-background overflow-hidden">
       {/* Top bar */}
@@ -256,9 +282,24 @@ export default function ProjectWorkspace() {
             </span>
           )}
         </div>
-        <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-[hsl(0,0%,20%)] border border-border transition-colors">
-          <Play className="w-3.5 h-3.5" />
-          Run
+        <button
+          onClick={handleRun}
+          disabled={isRunning || isProcessing || !files?.length}
+          className={cn(
+            'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border transition-colors',
+            isRunning
+              ? 'text-emerald-400 border-emerald-400/30 bg-emerald-400/10 cursor-not-allowed'
+              : files?.length
+              ? 'text-muted-foreground hover:text-foreground hover:bg-[hsl(0,0%,20%)] border-border'
+              : 'text-muted-foreground/40 border-border/40 cursor-not-allowed'
+          )}
+        >
+          {isRunning ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <Play className="w-3.5 h-3.5" />
+          )}
+          {isRunning ? 'Running…' : 'Run'}
         </button>
       </header>
 
@@ -336,7 +377,7 @@ export default function ProjectWorkspace() {
         <div className="w-80 border-l border-border bg-[hsl(0,0%,12%)] flex flex-col shrink-0">
           {/* Tabs */}
           <div className="flex border-b border-border shrink-0">
-            {(['generate', 'debug'] as const).map((tab) => (
+            {(['generate', 'debug', 'run'] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -349,8 +390,10 @@ export default function ProjectWorkspace() {
               >
                 {tab === 'generate' ? (
                   <Sparkles className="w-3.5 h-3.5" />
-                ) : (
+                ) : tab === 'debug' ? (
                   <Bug className="w-3.5 h-3.5" />
+                ) : (
+                  <Play className="w-3.5 h-3.5" />
                 )}
                 {tab}
               </button>
@@ -359,7 +402,28 @@ export default function ProjectWorkspace() {
 
           {/* Output */}
           <div className="flex-1 overflow-y-auto p-3 min-h-0">
-            {aiOutput ? (
+            {activeTab === 'run' ? (
+              runOutput ? (
+                <pre className="font-mono text-[12px] text-emerald-400 whitespace-pre-wrap leading-relaxed">
+                  {runOutput}
+                  {isRunning && <span className="animate-pulse">▌</span>}
+                </pre>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full gap-2 text-center text-muted-foreground py-8">
+                  {isRunning ? (
+                    <>
+                      <Loader2 className="w-8 h-8 opacity-20 animate-spin" />
+                      <p className="text-xs">Starting…</p>
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-8 h-8 opacity-20" />
+                      <p className="text-xs">Press Run to simulate project execution</p>
+                    </>
+                  )}
+                </div>
+              )
+            ) : aiOutput ? (
               <div className="text-[13px]">
                 {activeTab === 'generate' ? (
                   <pre className="font-mono text-emerald-400 whitespace-pre-wrap leading-relaxed text-[12px]">
@@ -388,8 +452,8 @@ export default function ProjectWorkspace() {
             )}
           </div>
 
-          {/* Input */}
-          <div className="p-3 border-t border-border shrink-0">
+          {/* Input — hidden on the Run tab */}
+          <div className={cn('p-3 border-t border-border shrink-0', activeTab === 'run' && 'hidden')}>
             <div className="relative bg-[hsl(0,0%,16%)] border border-border rounded-xl focus-within:border-[hsl(0,0%,30%)] transition-colors">
               <textarea
                 placeholder={

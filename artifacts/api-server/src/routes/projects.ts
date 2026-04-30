@@ -14,6 +14,8 @@ import {
   GenerateProjectCodeBody,
   DebugProjectCodeParams,
   DebugProjectCodeBody,
+  RunProjectCodeParams,
+  RunProjectCodeBody,
 } from "@workspace/api-zod";
 
 const router = Router();
@@ -326,6 +328,97 @@ Be concise and technical.`,
     res.end();
   } catch (err) {
     res.write(`data: ${JSON.stringify({ content: "Debug analysis failed. Please try again." })}\n\n`);
+    res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+    res.end();
+  }
+});
+
+// Run project (streaming SSE) — simulates execution via AI analysis
+router.post("/projects/:id/run", async (req, res) => {
+  const { id } = RunProjectCodeParams.parse({ id: parseInt(req.params.id) });
+  const body = RunProjectCodeBody.parse(req.body);
+
+  const project = await db.query.projects.findFirst({
+    where: eq(projects.id, id),
+  });
+  if (!project) {
+    res.status(404).json({ error: "Project not found" });
+    return;
+  }
+
+  const files = await db
+    .select()
+    .from(projectFiles)
+    .where(eq(projectFiles.projectId, id))
+    .orderBy(projectFiles.path);
+
+  if (files.length === 0) {
+    res.status(422).json({ error: "Project has no files to run" });
+    return;
+  }
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders();
+
+  // Build a compact file listing for the prompt (cap each file at 200 lines to
+  // stay within token limits while still giving the model enough context).
+  const MAX_LINES = 200;
+  const fileContext = files
+    .map((f) => {
+      const lines = f.content.split("\n");
+      const truncated = lines.length > MAX_LINES;
+      const preview = lines.slice(0, MAX_LINES).join("\n");
+      return `### ${f.path}\n\`\`\`${f.language}\n${preview}${truncated ? `\n// … (${lines.length - MAX_LINES} more lines)` : ""}\n\`\`\``;
+    })
+    .join("\n\n");
+
+  const entryHint = body.entryFile
+    ? `The user wants to run \`${body.entryFile}\` specifically.`
+    : "Identify the most appropriate entry point automatically.";
+
+  try {
+    res.write(
+      `data: ${JSON.stringify({ content: `Running ${project.name} (${project.framework})…\n\n` })}\n\n`,
+    );
+
+    const stream = await openai.chat.completions.create({
+      model: process.env.AI_CHAT_MODEL ?? "google/gemma-3-27b-it:free",
+      max_tokens: 4096,
+      messages: [
+        {
+          role: "system",
+          content: `You are a code execution simulator for the Spacze cloud IDE. Given a project's source files, simulate what would happen if the project were run in its target environment. Your output should look like realistic terminal output:
+
+- Show the startup sequence (dependency resolution, compilation/transpilation if applicable, server binding, etc.)
+- Emit realistic log lines with timestamps where appropriate
+- If the code has obvious bugs or missing config, surface them as runtime errors
+- End with a clear summary: either "✓ Running on <url/port>" or a concise error explaining why it failed
+- Keep output under 60 lines
+- Do NOT explain what you are doing — just emit the terminal output directly`,
+        },
+        {
+          role: "user",
+          content: `Project: ${project.name}\nFramework: ${project.framework}\n${entryHint}\n\nFiles:\n\n${fileContext}`,
+        },
+      ],
+      stream: true,
+    });
+
+    for await (const chunk of stream) {
+      const content = chunk.choices[0]?.delta?.content;
+      if (content) {
+        res.write(`data: ${JSON.stringify({ content })}\n\n`);
+      }
+    }
+
+    res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+    res.end();
+  } catch (err) {
+    res.write(
+      `data: ${JSON.stringify({ content: `Error: ${err instanceof Error ? err.message : "Run failed"}\n` })}\n\n`,
+    );
     res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
     res.end();
   }

@@ -1,57 +1,85 @@
 # Spacze AI Agent
 
-## Overview
-
-A full AI-powered development assistant — Spacze AI Agent is a conversational IDE that lets users create, scaffold, debug, and manage software projects through natural language. Built as a full-stack pnpm monorepo.
+A conversational IDE that lets users create, scaffold, debug, and run software projects through natural language. Built as a full-stack pnpm monorepo.
 
 ## Stack
 
-- **Monorepo tool**: pnpm workspaces
-- **Node.js version**: 24
-- **Package manager**: pnpm
-- **TypeScript version**: 5.9
-- **Frontend**: React + Vite (artifacts/spacze) at path "/"
-- **API framework**: Express 5 (artifacts/api-server) at path "/api"
-- **Database**: PostgreSQL + Drizzle ORM
-- **AI**: OpenAI via Replit AI Integrations (gpt-5.1, gpt-image-1)
-- **Validation**: Zod (`zod/v4`), `drizzle-zod`
-- **API codegen**: Orval (from OpenAPI spec)
-- **Build**: esbuild (CJS bundle)
+- **Monorepo**: pnpm workspaces
+- **Node.js**: 24 / **TypeScript**: 5.9
+- **Frontend**: React + Vite (`artifacts/spacze`) served at `/`
+- **API**: Express 5 (`artifacts/api-server`) served at `/api`
+- **Database**: PostgreSQL 16 + Drizzle ORM
+- **AI**: OpenAI-compatible API via OpenRouter (configurable)
+- **Validation**: Zod, drizzle-zod
+- **API codegen**: Orval (from OpenAPI spec in `lib/api-spec`)
 
 ## Features
 
-1. **AI Chat Agent** — Conversational AI coding assistant with streaming SSE responses, multi-turn conversations
+1. **AI Chat** — Multi-turn conversations with streaming SSE responses
 2. **Project Scaffolding** — Natural language → full project code generation (React, Next.js, Flask, Django, Express, etc.)
-3. **IDE Workspace** — File tree + code viewer + inline AI generation and debug panels
-4. **Debugging** — Paste errors, get AI-powered root cause analysis and fixes (streaming)
-5. **Asset Generation** — AI image generation for icons and visual assets
-6. **Dashboard** — Project stats, recent activity, quick-start CTAs
+3. **IDE Workspace** — File tree, code editor, inline AI generate/debug/run panels
+4. **Debugging** — Paste errors, get AI-powered root cause analysis and fixes
+5. **Run Simulation** — AI-simulated terminal execution output for any generated project
+6. **Image Generation** — AI image generation for icons and visual assets (requires direct OpenAI key)
+7. **Dashboard** — Project stats, recent activity, quick-start CTAs
 
-## Database Schema
+## Getting Started
 
-- `conversations` — AI chat threads
-- `messages` — Messages in each conversation (user + assistant roles)
-- `projects` — AI-generated project scaffolds with status tracking
-- `project_files` — Individual code files per project with language detection
+### Prerequisites
+
+- Node.js 24+
+- pnpm
+- Docker (for local PostgreSQL)
+
+### Environment variables
+
+| Variable | Description |
+|---|---|
+| `AI_INTEGRATIONS_OPENAI_API_KEY` | OpenRouter API key — get one free at [openrouter.ai/keys](https://openrouter.ai/keys) |
+| `AI_INTEGRATIONS_OPENAI_BASE_URL` | API base URL (default: `https://openrouter.ai/api/v1`) |
+| `AI_CHAT_MODEL` | Model to use (default: `google/gemma-3-27b-it:free`) |
+| `DATABASE_URL` | PostgreSQL connection string |
+
+On Ona/Gitpod, set `AI_INTEGRATIONS_OPENAI_API_KEY` as an environment secret — it is injected automatically at startup.
+
+### Running locally
+
+```bash
+pnpm install
+# Start Postgres, API server, and frontend via Ona automations,
+# or manually:
+docker run --rm -e POSTGRES_USER=spacze -e POSTGRES_PASSWORD=spacze -e POSTGRES_DB=spacze -p 5432:5432 postgres:16-alpine
+pnpm --filter @workspace/db push
+pnpm --filter @workspace/api-server dev   # http://localhost:8080
+pnpm --filter @workspace/spacze dev       # http://localhost:5173
+```
 
 ## Key Commands
 
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
+```bash
+pnpm run typecheck                          # typecheck all packages
+pnpm run build                              # typecheck + build all packages
+pnpm --filter @workspace/api-spec codegen  # regenerate API hooks and Zod schemas
+pnpm --filter @workspace/db push           # push DB schema (dev only)
+pnpm --filter @workspace/api-server test   # run API server tests
+```
 
-## Environment Variables
+## Database Schema
 
-- `AI_INTEGRATIONS_OPENAI_BASE_URL` — Replit AI Integrations proxy URL (auto-set)
-- `AI_INTEGRATIONS_OPENAI_API_KEY` — Replit AI Integrations key (auto-set)
-- `DATABASE_URL` — PostgreSQL connection string (auto-set)
+| Table | Purpose |
+|---|---|
+| `conversations` | AI chat threads |
+| `messages` | Messages per conversation (user + assistant) |
+| `projects` | AI-generated project scaffolds with status tracking |
+| `project_files` | Individual code files per project |
 
 ## Routes
 
-- `/` — Dashboard
-- `/chat` — Conversations list
-- `/chat/:id` — Chat thread with streaming AI
-- `/projects` — Projects list
-- `/projects/new` — New project creation + AI scaffolding
-- `/projects/:id` — Project workspace (file tree + editor + AI panel)
+| Path | Description |
+|---|---|
+| `/` | Dashboard |
+| `/chat` | Conversations list |
+| `/chat/:id` | Chat thread with streaming AI |
+| `/projects` | Projects list |
+| `/projects/new` | New project creation + AI scaffolding |
+| `/projects/:id` | Project workspace (file tree + editor + AI panel) |
